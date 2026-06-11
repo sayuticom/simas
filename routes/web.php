@@ -20,6 +20,7 @@ use App\Http\Controllers\MuzakkiController;
 use App\Http\Controllers\NazhirController;
 use App\Http\Controllers\PlaceholderController;
 use App\Http\Controllers\PengumumanController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TransactionCategoryController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\UserInvitationController;
@@ -78,6 +79,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/select-mosque', [AuthController::class, 'showMosqueSelect'])->name('mosque.select');
     Route::post('/switch-mosque', [AuthController::class, 'switchMosque'])->name('mosque.switch');
     Route::post('/all-mosques', [AuthController::class, 'showAllMosques'])->name('mosque.all');
+    Route::get('/akun/password', [ProfileController::class, 'editPassword'])->name('account.password.edit');
+    Route::put('/akun/password', [ProfileController::class, 'updatePassword'])->name('account.password.update');
     Route::get('/users', [UserManagementController::class, 'index'])->name('users.index');
     Route::get('/users/create', [UserManagementController::class, 'create'])->name('users.create');
     Route::post('/users', [UserManagementController::class, 'store'])->name('users.store');

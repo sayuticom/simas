@@ -25,11 +25,19 @@ class UserManagementController extends Controller
 
     public function index(Request $request): View
     {
-        $this->authorizeSuperuser();
+        $this->authorizeCanManageUsers();
 
         $filters = $request->only(['q', 'role_id', 'mosque_id']);
+        $actor = auth()->user();
+        $manageableMosqueIds = $this->manageableMosqueIds($actor);
 
         $users = User::with('roles')
+            ->when(! $actor->isSuperuser(), function ($query) use ($manageableMosqueIds) {
+                $query->whereDoesntHave('roles', fn ($query) => $query
+                    ->whereIn('roles.name', [Role::SUPER_SUPERUSER, Role::SUPERUSER])
+                    ->whereNull('role_user.mosque_id'))
+                    ->whereHas('roles', fn ($query) => $query->whereIn('role_user.mosque_id', $manageableMosqueIds));
+            })
             ->when($filters['q'] ?? null, function ($query, $keyword) {
                 $query->where(function ($query) use ($keyword) {
                     $query->where('name', 'like', "%{$keyword}%")
@@ -40,14 +48,18 @@ class UserManagementController extends Controller
             ->when($filters['role_id'] ?? null, function ($query, $roleId) {
                 $query->whereHas('roles', fn ($query) => $query->where('roles.id', $roleId));
             })
-            ->when($filters['mosque_id'] ?? null, function ($query, $mosqueId) {
+            ->when($filters['mosque_id'] ?? null, function ($query, $mosqueId) use ($actor, $manageableMosqueIds) {
+                if (! $actor->isSuperuser() && ! in_array((int) $mosqueId, $manageableMosqueIds, true)) {
+                    return $query->whereRaw('1 = 0');
+                }
+
                 $query->whereHas('roles', fn ($query) => $query->where('role_user.mosque_id', $mosqueId));
             })
             ->orderBy('name')
             ->get();
-        $mosqueNames = Mosque::pluck('name', 'id');
-        $mosques = Mosque::orderBy('name')->get(['id', 'name']);
-        $roles = Role::orderBy('label')->get(['id', 'label']);
+        $mosqueNames = Mosque::when(! $actor->isSuperuser(), fn ($query) => $query->whereIn('id', $manageableMosqueIds))->pluck('name', 'id');
+        $mosques = Mosque::when(! $actor->isSuperuser(), fn ($query) => $query->whereIn('id', $manageableMosqueIds))->orderBy('name')->get(['id', 'name']);
+        $roles = Role::when(! $actor->isSuperuser(), fn ($query) => $query->whereIn('name', self::ASSIGNABLE_ROLE_NAMES))->orderBy('label')->get(['id', 'label']);
 
         return view('users.index', compact('filters', 'mosqueNames', 'mosques', 'roles', 'users'));
     }
@@ -87,17 +99,19 @@ class UserManagementController extends Controller
 
     public function edit(User $user): View
     {
-        $this->authorizeSuperuser();
-        $this->authorizePrivilegedTarget($user);
+        $this->authorizeCanEditUser($user);
 
+        $actor = auth()->user();
         $user->load('roles');
-        $mosques = Mosque::orderBy('name')->get();
-        $roles = Role::whereIn('name', self::ASSIGNABLE_ROLE_NAMES)->orderBy('label')->get();
+        $manageableMosqueIds = $this->manageableMosqueIds($actor);
+        $mosques = Mosque::when(! $actor->isSuperuser(), fn ($query) => $query->whereIn('id', $manageableMosqueIds))->orderBy('name')->get();
+        $roles = Role::whereIn('name', $actor->isSuperuser() ? self::ASSIGNABLE_ROLE_NAMES : $this->adminAssignableRoleNames())->orderBy('label')->get();
         $isSuperuser = $user->isSuperuser();
         $isSuperSuperuser = $user->isSuperSuperuser();
         $canAssignSuperuser = auth()->user()->isSuperSuperuser();
         $assignedAccesses = $user->roles
             ->whereNotNull('pivot.mosque_id')
+            ->filter(fn (Role $role) => $actor->isSuperuser() || in_array((int) $role->pivot->mosque_id, $manageableMosqueIds, true))
             ->map(fn (Role $role) => [
                 'mosque_id' => $role->pivot->mosque_id,
                 'role_id' => $role->id,
@@ -110,12 +124,14 @@ class UserManagementController extends Controller
 
     public function update(Request $request, User $user): RedirectResponse
     {
-        $this->authorizeSuperuser();
-        $this->authorizePrivilegedTarget($user);
+        $this->authorizeCanEditUser($user);
+        $actor = auth()->user();
 
         $isSuperSuperuser = $user->isSuperSuperuser();
         if ($isSuperSuperuser) {
             $request->merge(['is_superuser' => true]);
+        } elseif (! $actor->isSuperuser()) {
+            $request->merge(['is_superuser' => false]);
         } else {
             $this->authorizeSuperuserAssignment($request->boolean('is_superuser'));
         }
@@ -128,6 +144,7 @@ class UserManagementController extends Controller
         $validated = $this->validateUserRequest($request, false, $user);
         $isSuperuser = $validated['is_superuser'];
         $accesses = $this->normalizedAccesses($validated);
+        $this->authorizeAccessAssignments($accesses);
 
         DB::transaction(function () use ($validated, $isSuperuser, $isSuperSuperuser, $accesses, $user): void {
             $attributes = [
@@ -154,6 +171,8 @@ class UserManagementController extends Controller
     {
         $request->merge(['is_superuser' => $request->boolean('is_superuser')]);
         $isSuperuser = $request->boolean('is_superuser');
+        $actor = auth()->user();
+        $assignableRoleNames = $actor?->isSuperuser() ? self::ASSIGNABLE_ROLE_NAMES : $this->adminAssignableRoleNames();
 
         $passwordRules = $passwordRequired || $request->boolean('reset_password')
             ? ['required', 'string', 'min:8', 'confirmed']
@@ -170,7 +189,7 @@ class UserManagementController extends Controller
             'accesses.*.role_id' => [
                 'required_with:accesses',
                 'integer',
-                Rule::exists('roles', 'id')->where(fn ($query) => $query->whereIn('name', self::ASSIGNABLE_ROLE_NAMES)),
+                Rule::exists('roles', 'id')->where(fn ($query) => $query->whereIn('name', $assignableRoleNames)),
             ],
         ]);
     }
@@ -213,9 +232,42 @@ class UserManagementController extends Controller
         abort_unless(auth()->user()->isSuperuser(), 403);
     }
 
-    private function authorizePrivilegedTarget(User $user): void
+    private function authorizeCanManageUsers(): void
     {
-        abort_if($user->isSuperuser() && ! auth()->user()->isSuperSuperuser(), 403);
+        $actor = auth()->user();
+
+        abort_unless($actor?->isSuperuser() || $actor?->isMosqueAdmin(), 403);
+    }
+
+    private function authorizeCanEditUser(User $target): void
+    {
+        $actor = auth()->user();
+
+        $this->authorizeCanManageUsers();
+        abort_if((int) $actor->id === (int) $target->id, 403);
+
+        if ($actor->isSuperSuperuser()) {
+            return;
+        }
+
+        abort_if($target->isSuperuser(), 403);
+
+        if ($actor->isSuperuser()) {
+            return;
+        }
+
+        $managedMosqueIds = $this->manageableMosqueIds($actor);
+        $targetMosqueIds = $target->roles()
+            ->wherePivotNotNull('mosque_id')
+            ->get()
+            ->pluck('pivot.mosque_id')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        abort_if(empty($targetMosqueIds), 403);
+        abort_unless(empty(array_diff($targetMosqueIds, $managedMosqueIds)), 403);
     }
 
     private function authorizeSuperuserAssignment(bool $isSuperuser): void
@@ -225,5 +277,51 @@ class UserManagementController extends Controller
                 'is_superuser' => 'Hanya super superuser yang dapat menetapkan role superuser.',
             ]);
         }
+    }
+
+    private function authorizeAccessAssignments($accesses): void
+    {
+        $actor = auth()->user();
+
+        if ($actor->isSuperuser()) {
+            return;
+        }
+
+        $managedMosqueIds = $this->manageableMosqueIds($actor);
+        $invalidMosque = $accesses->contains(fn (array $access) => ! in_array((int) $access['mosque_id'], $managedMosqueIds, true));
+
+        if ($invalidMosque) {
+            throw ValidationException::withMessages([
+                'accesses' => 'Anda hanya dapat mengatur akses pada masjid yang Anda kelola.',
+            ]);
+        }
+    }
+
+    private function manageableMosqueIds(User $user): array
+    {
+        if ($user->isSuperuser()) {
+            return Mosque::pluck('id')->map(fn ($id) => (int) $id)->all();
+        }
+
+        $adminRoleId = Role::where('name', Role::ADMIN_MASJID)->value('id');
+
+        return $user->roles()
+            ->wherePivot('role_id', $adminRoleId)
+            ->wherePivotNotNull('mosque_id')
+            ->pluck('role_user.mosque_id')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function adminAssignableRoleNames(): array
+    {
+        return [
+            Role::KETUA_DKM,
+            Role::BENDAHARA,
+            Role::SEKRETARIS,
+            Role::OPERATOR,
+        ];
     }
 }

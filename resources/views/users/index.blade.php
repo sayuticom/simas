@@ -65,8 +65,21 @@
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
                 @forelse($users as $user)
+                    @php
+                        $isProtectedSuperuser = $user->isSuperuser();
+                        $isOwnAccount = auth()->id() === $user->id;
+                        $canEditRow = ! $isOwnAccount && (! $isProtectedSuperuser || auth()->user()->isSuperSuperuser());
+                    @endphp
                     <tr>
-                        <td class="px-4 py-4 text-sm font-semibold text-gray-900">{{ $user->name }}</td>
+                        <td class="px-4 py-4 text-sm font-semibold text-gray-900">
+                            {{ $user->name }}
+                            @if($isProtectedSuperuser)
+                                <span class="ml-2 inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">Terproteksi</span>
+                            @endif
+                            @if($isOwnAccount)
+                                <span class="ml-2 inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600">Akun Saya</span>
+                            @endif
+                        </td>
                         <td class="px-4 py-4 text-sm text-gray-700">
                             <div>{{ $user->email }}</div>
                             <div class="text-xs text-gray-500">{{ $user->phone ?: 'Nomor WhatsApp belum ada' }}</div>
@@ -86,9 +99,13 @@
                             @endforelse
                         </td>
                         <td class="px-4 py-4 text-right text-sm">
-                            @if(! $user->isSuperuser() || auth()->user()->isSuperSuperuser())
+                            @if($canEditRow)
                                 <a href="{{ route('users.edit', $user) }}" class="rounded-lg border border-indigo-200 px-3 py-2 font-semibold text-indigo-600 hover:bg-indigo-50">
                                     Edit
+                                </a>
+                            @elseif($isOwnAccount)
+                                <a href="{{ route('account.password.edit') }}" class="rounded-lg border border-gray-200 px-3 py-2 font-semibold text-gray-600 hover:bg-gray-50">
+                                    Profil Saya
                                 </a>
                             @else
                                 <span class="text-xs font-semibold text-gray-400">Terproteksi</span>

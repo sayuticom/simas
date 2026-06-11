@@ -1,13 +1,11 @@
 @extends('layouts.admin')
 
 @section('title', 'Dashboard - SIMAS')
-@section('page_title', 'Dashboard')
+@section('page_title', 'SIMAS Executive Dashboard')
 
 @section('content')
 @php
     $rupiah = fn ($value) => 'Rp ' . number_format((float) $value, 0, ',', '.');
-    $activeMosqueName = $activeMosque?->name ?? 'SIMAS Masjid';
-    $activeMosqueAddress = $activeMosque?->address ?? 'Pilih masjid aktif untuk melihat ringkasan operasional.';
     $mainPhoto = $activeMosque?->photos()?->where('is_featured', true)->first() ?? $activeMosque?->photos()?->latest()?->first();
 @endphp
 
@@ -121,70 +119,45 @@
 @else
 <div class="space-y-6">
     <section class="overflow-hidden rounded-3xl bg-emerald-950 text-white shadow-2xl">
-        <div class="relative grid gap-6 p-6 sm:p-8 lg:grid-cols-[1.4fr_0.8fr] lg:items-center">
-            <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(212,175,55,0.25),transparent_34%)]"></div>
-            <div class="relative">
-                <p class="text-xs font-semibold uppercase tracking-[0.3em] !text-yellow-300">SIMAS Executive Dashboard</p>
-                <h1 class="mt-4 text-3xl font-black tracking-tight !text-white sm:text-5xl">{{ $activeMosqueName }}</h1>
-                <p class="mt-4 max-w-3xl text-sm leading-6 !text-slate-200">{{ $activeMosqueAddress }}</p>
-                <div class="mt-6 flex flex-wrap gap-3">
-                    <span class="inline-flex items-center rounded-full border border-amber-200/30 bg-amber-200/10 px-4 py-2 text-sm font-semibold text-amber-100">
-                        <i class="fas fa-user-shield mr-2"></i>{{ auth()->user()?->name ?? 'Admin' }}
-                    </span>
-                    <span class="inline-flex items-center rounded-full border border-white/10 bg-white/10 px-4 py-2 text-sm font-semibold text-slate-100">
-                        <i class="fas fa-wallet mr-2 text-amber-200"></i>Total Dana: {{ $rupiah($financialSummary['totalDanaTerkelola']) }}
-                    </span>
-                </div>
-            </div>
-            <div class="relative rounded-2xl border border-white/10 bg-white/10 p-5 backdrop-blur">
-                <p class="text-sm font-semibold text-slate-200">Ringkasan Hari Ini</p>
-                <div class="mt-4 grid grid-cols-2 gap-3">
-                    <div class="rounded-xl bg-emerald-950/60 p-4">
-                        <p class="text-xs text-slate-400">Jamaah</p>
-                        <p class="mt-2 text-2xl font-black text-white">{{ $totalJamaah }}</p>
-                    </div>
-                    <div class="rounded-xl bg-yellow-400 p-4 text-slate-950">
-                        <p class="text-xs font-semibold">Saldo</p>
-                        <p class="mt-2 text-lg font-black">{{ $rupiah($financialSummary['saldoKeuangan']) }}</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section class="overflow-hidden rounded-3xl border border-emerald-100 bg-white shadow-sm">
         @if($activeMosque)
-            <div class="grid grid-cols-1 lg:grid-cols-[300px_1fr]">
-                <div class="h-56 lg:h-full">
+                @php
+                    // Label untuk website button di-set melalui conditional di template
+                @endphp
+
+                <div class="relative grid grid-cols-1 gap-0 lg:grid-cols-[320px_1fr]">
+                <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(212,175,55,0.26),transparent_34%)]"></div>
+                <div class="relative h-64 lg:h-full">
                     @if($mainPhoto)
                         <img src="{{ asset('storage/' . $mainPhoto->path) }}" alt="Foto {{ $activeMosque->name }}" class="h-full w-full object-cover">
                     @else
-                        <div class="flex h-full min-h-56 w-full flex-col items-center justify-center bg-emerald-950 text-amber-200">
+                        <div class="flex h-full min-h-64 w-full flex-col items-center justify-center bg-emerald-900 text-amber-200">
                             <i class="fas fa-mosque text-5xl"></i>
                             <p class="mt-3 text-sm font-semibold text-white">Foto masjid belum tersedia</p>
                         </div>
                     @endif
                 </div>
-                <div class="p-6 sm:p-7">
-                    <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                <div class="relative p-4 md:p-6 sm:p-8">
+                    <div class="flex flex-col gap-3 md:gap-4 xl:flex-row xl:items-start xl:justify-between">
                         <div>
-                            <p class="text-xs font-black uppercase tracking-[0.24em] text-amber-700">Masjid Aktif</p>
-                            <h2 class="mt-2 text-2xl font-black text-slate-950 sm:text-3xl">{{ $activeMosque->name }}</h2>
-                            <div class="mt-4 grid gap-3 text-sm text-slate-700 md:grid-cols-2">
-                                <p class="flex gap-2"><i class="fas fa-location-dot mt-1 text-emerald-800"></i><span>{{ $activeMosque->address ?? 'Alamat belum diisi' }}</span></p>
-                                <p class="flex gap-2"><i class="fas fa-phone mt-1 text-emerald-800"></i><span>{{ $activeMosque->phone ?? 'Telepon belum diisi' }}</span></p>
-                                <p class="flex gap-2 md:col-span-2"><i class="fas fa-note-sticky mt-1 text-emerald-800"></i><span>{{ $activeMosque->notes ?? 'Catatan masjid belum diisi' }}</span></p>
+                            <p class="text-xs font-black uppercase tracking-[0.28em] text-yellow-300 drop-shadow-sm">Masjid Aktif</p>
+                            <h2 class="mt-2 md:mt-3 text-3xl font-black tracking-tight !text-white sm:text-5xl">{{ $activeMosque->name }}</h2>
+                            <div class="mt-3 md:mt-4 grid gap-3 md:gap-4 text-sm leading-6 text-emerald-50 md:grid-cols-2">
+                                <p class="flex gap-2"><i class="fas fa-location-dot mt-1 text-yellow-300"></i><span>{{ $activeMosque->address ?? 'Alamat belum diisi' }}</span></p>
+                                <p class="flex gap-2"><i class="fas fa-phone mt-1 text-yellow-300"></i><span>{{ $activeMosque->phone ?? 'Telepon belum diisi' }}</span></p>
+                                <p class="flex gap-2 md:col-span-2"><i class="fas fa-note-sticky mt-1 text-yellow-300"></i><span>{{ $activeMosque->notes ?? 'Catatan masjid belum diisi' }}</span></p>
                             </div>
                         </div>
-                        <div class="flex flex-wrap gap-3">
-                            @if($publicWebsiteUrl)
-                                <a href="{{ $publicWebsiteUrl }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center rounded-xl bg-amber-400 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-amber-300">
-                                    <i class="fas fa-up-right-from-square mr-2"></i> Buka Website
-                                </a>
-                            @elseif(Route::has('website-settings.edit'))
-                                <a href="{{ route('website-settings.edit') }}" class="inline-flex items-center rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-bold text-amber-900 hover:bg-amber-100">
-                                    <i class="fas fa-globe mr-2"></i> Atur Website
-                                </a>
+                        <div class="flex flex-wrap gap-2 md:gap-3">
+                            @if(Route::has('website-settings.edit'))
+                                @if($websiteSetting?->subdomain)
+                                    <a href="{{ $websiteSetting->publicUrl('https') }}" target="_blank" class="inline-flex items-center rounded-xl border border-yellow-300 bg-yellow-100 px-4 py-2 text-sm font-bold text-emerald-950 hover:bg-yellow-200 shadow-sm">
+                                        <i class="fas fa-globe mr-2"></i> Buka Website
+                                    </a>
+                                @else
+                                    <a href="{{ route('website-settings.edit') }}" class="inline-flex items-center rounded-xl border border-yellow-300 bg-yellow-100 px-4 py-2 text-sm font-bold text-emerald-950 hover:bg-yellow-200 shadow-sm">
+                                        <i class="fas fa-globe mr-2"></i> Atur Website
+                                    </a>
+                                @endif
                             @endif
                             @if(Route::has('profile'))
                                 <a href="{{ route('profile') }}" class="inline-flex items-center rounded-xl bg-emerald-950 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-900">
@@ -194,39 +167,40 @@
                         </div>
                     </div>
 
-                    <div class="mt-6 grid gap-3 sm:grid-cols-3">
-                        <div class="rounded-2xl bg-slate-50 p-4">
-                            <p class="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Ketua DKM</p>
-                            <p class="mt-2 font-black text-slate-950">{{ $pengurus['ketua_dkm'] }}</p>
+                    <div class="mt-4 md:mt-5 grid gap-3 sm:grid-cols-3">
+                        <div class="rounded-2xl border border-white/10 bg-white/10 p-3 md:p-4 backdrop-blur">
+                            <p class="text-xs font-bold uppercase tracking-[0.16em] text-yellow-300">Ketua DKM</p>
+                            <p class="mt-1 md:mt-2 font-black text-white text-sm md:text-base">{{ $pengurus['ketua_dkm'] }}</p>
                         </div>
-                        <div class="rounded-2xl bg-slate-50 p-4">
-                            <p class="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Bendahara</p>
-                            <p class="mt-2 font-black text-slate-950">{{ $pengurus['bendahara'] }}</p>
+                        <div class="rounded-2xl border border-white/10 bg-white/10 p-3 md:p-4 backdrop-blur">
+                            <p class="text-xs font-bold uppercase tracking-[0.16em] text-yellow-300">Bendahara</p>
+                            <p class="mt-1 md:mt-2 font-black text-white text-sm md:text-base">{{ $pengurus['bendahara'] }}</p>
                         </div>
-                        <div class="rounded-2xl bg-slate-50 p-4">
-                            <p class="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Sekretaris</p>
-                            <p class="mt-2 font-black text-slate-950">{{ $pengurus['sekretaris'] }}</p>
+                        <div class="rounded-2xl border border-white/10 bg-white/10 p-3 md:p-4 backdrop-blur">
+                            <p class="text-xs font-bold uppercase tracking-[0.16em] text-yellow-300">Sekretaris</p>
+                            <p class="mt-1 md:mt-2 font-black text-white text-sm md:text-base">{{ $pengurus['sekretaris'] }}</p>
                         </div>
                     </div>
                 </div>
             </div>
         @else
-            <div class="p-6 sm:p-7">
-                <p class="text-xs font-black uppercase tracking-[0.24em] text-amber-700">Masjid Aktif</p>
-                <h2 class="mt-2 text-2xl font-black text-slate-950">Belum ada masjid yang dipilih</h2>
-                <p class="mt-2 text-sm text-slate-600">Pilih masjid aktif agar dashboard menampilkan informasi masjid, data jamaah, keuangan, dan modul operasional.</p>
+            <div class="relative p-4 md:p-6 sm:p-8">
+                <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(212,175,55,0.26),transparent_34%)]"></div>
+                <div class="relative">
+                    <p class="text-xs font-black uppercase tracking-[0.24em] text-yellow-300 drop-shadow-sm">Masjid Aktif</p>
+                    <h2 class="mt-2 text-2xl font-black text-white">Belum ada masjid yang dipilih</h2>
+                    <p class="mt-2 text-sm text-emerald-50">Pilih masjid aktif agar dashboard menampilkan informasi masjid, data jamaah, keuangan, dan modul operasional.</p>
+                </div>
             </div>
         @endif
     </section>
 
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         @foreach([
-            ['label' => 'Total Jamaah', 'value' => number_format($totalJamaah, 0, ',', '.'), 'note' => 'Data jamaah terdaftar', 'icon' => 'fa-users'],
-            ['label' => 'Total Masuk', 'value' => $rupiah($financialSummary['totalMasuk']), 'note' => 'Penerimaan tercatat', 'icon' => 'fa-arrow-trend-up'],
-            ['label' => 'Total Keluar', 'value' => $rupiah($financialSummary['totalKeluar']), 'note' => 'Pengeluaran tercatat', 'icon' => 'fa-arrow-trend-down'],
-            ['label' => 'Saldo Keuangan', 'value' => $rupiah($financialSummary['saldoKeuangan']), 'note' => 'Saldo operasional', 'icon' => 'fa-wallet'],
-            ['label' => 'Saldo ZIS', 'value' => $rupiah($financialSummary['saldoZis']), 'note' => 'Saldo dana ZIS', 'icon' => 'fa-hand-holding-heart'],
-            ['label' => 'Total Dana Terkelola', 'value' => $rupiah($financialSummary['totalDanaTerkelola']), 'note' => 'Keuangan dan ZIS', 'icon' => 'fa-scale-balanced'],
+            ['label' => 'Total Jamaah', 'value' => number_format($dashboardStats['totalJamaah'] ?? 0, 0, ',', '.'), 'note' => 'Jamaah masjid aktif', 'icon' => 'fa-users'],
+            ['label' => 'Total Dana', 'value' => $rupiah($dashboardStats['totalDana'] ?? 0), 'note' => 'Keuangan dan ZIS', 'icon' => 'fa-wallet'],
+            ['label' => 'Program Donasi', 'value' => number_format($dashboardStats['programDonasi'] ?? 0, 0, ',', '.'), 'note' => 'Program published', 'icon' => 'fa-hand-holding-heart'],
+            ['label' => 'Kegiatan Aktif', 'value' => number_format($dashboardStats['kegiatanAktif'] ?? 0, 0, ',', '.'), 'note' => 'Terencana dan berjalan', 'icon' => 'fa-calendar-days'],
         ] as $card)
             <div class="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-xl">
                 <div class="flex items-start justify-between gap-4">

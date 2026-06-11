@@ -536,10 +536,15 @@
                         @endphp
                         @if(auth()->user()->activeMosque || auth()->user()->isSuperuser())
                         <li>
-                            <div class="sidebar-section flex items-center px-3 py-2 rounded-lg {{ request()->routeIs('profile', 'users.*', 'user-invitations.*', 'roles.*') ? 'bg-indigo-600 text-white' : 'text-gray-700' }}">
+                            <div class="sidebar-section flex items-center px-3 py-2 rounded-lg {{ request()->routeIs('profile', 'account.password.*', 'users.*', 'user-invitations.*', 'roles.*') ? 'bg-indigo-600 text-white' : 'text-gray-700' }}">
                                 <i class="fas fa-cog mr-3"></i>
                                 <span>Pengaturan</span>
                             </div>
+                        </li>
+                        <li class="pl-6">
+                            <a href="{{ route('account.password.edit') }}" class="flex items-center px-3 py-1.5 rounded-lg text-sm {{ request()->routeIs('account.password.*') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-600 hover:bg-gray-100' }}">
+                                Ubah Password
+                            </a>
                         </li>
                         @if(auth()->user()->activeMosque)
                             <li class="pl-6">
@@ -548,12 +553,14 @@
                                 </a>
                             </li>
                         @endif
-                        @if(auth()->user()->isSuperuser())
+                        @if(auth()->user()->isSuperuser() || auth()->user()->isMosqueAdmin())
                             <li class="pl-6">
                                 <a href="{{ route('users.index') }}" class="flex items-center px-3 py-1.5 rounded-lg text-sm {{ request()->routeIs('users.*') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-600 hover:bg-gray-100' }}">
                                     User &amp; Hak Akses
                                 </a>
                             </li>
+                        @endif
+                        @if(auth()->user()->isSuperuser())
                             <li class="pl-6">
                                 <a href="{{ route('user-invitations.index') }}" class="flex items-center px-3 py-1.5 rounded-lg text-sm {{ request()->routeIs('user-invitations.*') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-600 hover:bg-gray-100' }}">
                                     Undangan User

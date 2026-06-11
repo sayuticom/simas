@@ -260,10 +260,6 @@ class ZisDistributionController extends Controller
                 $query->where('is_active', true)
                     ->when($includeId, fn ($q) => $q->orWhere('id', $includeId));
             })
-            ->where(function ($query) use ($includeId) {
-                $query->where('can_distribute_zis', true)
-                    ->when($includeId, fn ($q) => $q->orWhere('id', $includeId));
-            })
             ->orderBy('type')
             ->orderBy('name')
             ->get()

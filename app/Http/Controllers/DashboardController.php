@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\CashAccount;
+use App\Models\DonationProgram;
 use App\Models\Jamaah;
+use App\Models\Kegiatan;
 use App\Models\Mosque;
 use App\Models\Role;
 use App\Models\Transaction;
@@ -23,7 +25,6 @@ class DashboardController extends Controller
         $user = auth()->user();
         $availableMosques = $user?->selectableMosques() ?? collect();
         $activeMosque = $user ? $user->activeMosque()->with(['profile', 'users.roles'])->first() : null;
-        $totalJamaah = Jamaah::withoutGlobalScope('mosque')->count();
 
         if ($user && ! $user->isSuperuser() && ! $activeMosque && $availableMosques->count() === 1) {
             $user->setActiveMosque($availableMosques->first()->id);
@@ -32,6 +33,7 @@ class DashboardController extends Controller
         }
 
         $financialSummary = $this->financialSummaryFor($activeMosque?->id);
+        $dashboardStats = $this->dashboardStatsFor($activeMosque?->id, $financialSummary);
         $websiteSetting = $activeMosque
             ? WebsiteSetting::withoutGlobalScopes()
                 ->where('mosque_id', $activeMosque->id)
@@ -60,10 +62,10 @@ class DashboardController extends Controller
             $totalManagers = $mosques->flatMap->users->unique('id')->count();
             $totalContacts = $mosques->filter(fn ($mosque) => $mosque->address || $mosque->phone)->count();
 
-            return view('admin.dashboard', compact('mosques', 'mosquePengurus', 'totalManagers', 'totalContacts', 'activeMosque', 'pengurus', 'totalJamaah', 'financialSummary', 'websiteSetting', 'publicWebsiteUrl'));
+            return view('admin.dashboard', compact('mosques', 'mosquePengurus', 'totalManagers', 'totalContacts', 'activeMosque', 'pengurus', 'dashboardStats', 'financialSummary', 'websiteSetting', 'publicWebsiteUrl'));
         }
 
-        return view('admin.dashboard', compact('activeMosque', 'pengurus', 'availableMosques', 'totalJamaah', 'financialSummary', 'websiteSetting', 'publicWebsiteUrl'));
+        return view('admin.dashboard', compact('activeMosque', 'pengurus', 'availableMosques', 'dashboardStats', 'financialSummary', 'websiteSetting', 'publicWebsiteUrl'));
     }
 
     private function emptyPengurus(): array
@@ -152,6 +154,33 @@ class DashboardController extends Controller
             'saldoZis' => $saldoZis,
             'totalDanaTerkelola' => $saldoKeuangan + $saldoZis,
             'positionByType' => $positionByType,
+        ];
+    }
+
+    private function dashboardStatsFor(?int $mosqueId, array $financialSummary): array
+    {
+        if (! $mosqueId) {
+            return [
+                'totalJamaah' => 0,
+                'totalDana' => $financialSummary['totalDanaTerkelola'] ?? 0,
+                'programDonasi' => 0,
+                'kegiatanAktif' => 0,
+            ];
+        }
+
+        return [
+            'totalJamaah' => Jamaah::withoutGlobalScope('mosque')
+                ->where('mosque_id', $mosqueId)
+                ->count(),
+            'totalDana' => $financialSummary['totalDanaTerkelola'] ?? 0,
+            'programDonasi' => DonationProgram::withoutGlobalScope('mosque')
+                ->where('mosque_id', $mosqueId)
+                ->where('status', DonationProgram::STATUS_PUBLISHED)
+                ->count(),
+            'kegiatanAktif' => Kegiatan::withoutGlobalScope('mosque')
+                ->where('mosque_id', $mosqueId)
+                ->whereIn('status', ['terencana', 'berjalan'])
+                ->count(),
         ];
     }
 
