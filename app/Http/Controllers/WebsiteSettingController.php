@@ -39,7 +39,7 @@ class WebsiteSettingController extends Controller
         return view('admin.website_settings.edit', [
             'activeMosque' => $activeMosque,
             'availableMosques' => $availableMosques,
-            'baseDomain' => config('simas.base_domain', 'simas.test'),
+            'baseDomain' => config('simas.base_domain', 'masjidkeren.my.id'),
             'canUpdate' => $canUpdate,
             'reservedSubdomains' => WebsiteSetting::RESERVED_SUBDOMAINS,
             'statuses' => WebsiteSetting::statuses(),

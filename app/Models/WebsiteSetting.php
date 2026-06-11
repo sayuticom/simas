@@ -80,7 +80,7 @@ class WebsiteSetting extends Model
 
     public function publicUrl(?string $scheme = 'https'): string
     {
-        $baseDomain = config('simas.base_domain', 'simas.test');
+        $baseDomain = config('simas.base_domain', 'masjidkeren.my.id');
 
         return "{$scheme}://{$this->subdomain}.{$baseDomain}";
     }

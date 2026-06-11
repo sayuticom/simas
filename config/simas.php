@@ -1,5 +1,5 @@
 <?php
 
 return [
-    'base_domain' => env('APP_BASE_DOMAIN', 'simas.test'),
+    'base_domain' => env('SIMAS_BASE_DOMAIN', 'masjidkeren.my.id'),
 ];

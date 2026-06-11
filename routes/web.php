@@ -62,9 +62,7 @@ Route::domain('{subdomain}.' . config('simas.base_domain'))->group(function () {
     Route::get('/kontak', [PublicWebsiteController::class, 'contact'])->name('public-website.contact');
 });
 
-Route::get('/', function () {
-    return redirect()->route('dashboard');
-});
+Route::get('/', fn () => redirect()->route('login'));
 
 // Auth routes
 Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
