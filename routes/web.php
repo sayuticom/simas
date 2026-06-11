@@ -63,6 +63,7 @@ Route::domain('{subdomain}.' . config('simas.base_domain'))->group(function () {
 });
 
 Route::get('/', fn () => redirect()->route('login'));
+Route::get('/tanda-terima-zis/{token}', [ZisReceiptController::class, 'publicReceipt'])->name('zis.penerimaan.receipt.public');
 
 // Auth routes
 Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
@@ -166,6 +167,7 @@ Route::middleware(['web', 'auth', \App\Http\Middleware\EnsureActiveMosque::class
             ->except(['show'])
             ->parameters(['kategori' => 'category'])
             ->names('categories');
+        Route::get('/penerimaan/{receipt}/kwitansi', [ZisReceiptController::class, 'kwitansi'])->name('receipts.kwitansi');
         Route::resource('penerimaan', ZisReceiptController::class)
             ->parameters(['penerimaan' => 'receipt'])
             ->names('receipts');

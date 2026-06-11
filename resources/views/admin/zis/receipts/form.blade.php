@@ -44,9 +44,14 @@
         @error('amount')<p class="text-sm text-red-600">{{ $message }}</p>@enderror
     </div>
     <div>
-        <label class="block text-sm font-semibold text-gray-700">Bukti Transaksi</label>
+        <label class="block text-sm font-semibold text-gray-700">Bukti Transfer / Lampiran</label>
         <input type="file" name="proof_file" accept="image/*,.pdf" class="mt-2 w-full text-sm">
+        <p class="mt-1 text-xs text-gray-500">Opsional. Diisi jika donatur/muzakki mengirim bukti transfer, QRIS, atau lampiran pembayaran.</p>
+        @error('proof_file')<p class="text-sm text-red-600">{{ $message }}</p>@enderror
     </div>
+</div>
+<div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+    Kwitansi penerimaan resmi dapat dicetak setelah data disimpan.
 </div>
 <div>
     <label class="block text-sm font-semibold text-gray-700">Keterangan</label>

@@ -59,6 +59,7 @@
                         </td>
                         <td class="px-4 py-4 text-right text-sm space-x-2">
                             <a href="{{ route('zis.receipts.show', $receipt) }}" class="text-indigo-600 hover:text-indigo-900">Lihat</a>
+                            <a href="{{ route('zis.receipts.kwitansi', $receipt) }}" target="_blank" class="text-slate-600 hover:text-slate-900">Cetak jika perlu</a>
                             @if($remainingAmount > 0)
                                 <a href="{{ route('zis.distributions.create', ['receipt_id' => $receipt->id]) }}" class="text-blue-600 hover:text-blue-900">Salurkan</a>
                             @else

@@ -44,9 +44,9 @@ class ZisReceiptController extends Controller
             $data['proof_file'] = $request->file('proof_file')->store('zis/receipts', 'public');
         }
 
-        ZisReceipt::create($this->payload($data, $category));
+        $receipt = ZisReceipt::create($this->payload($data, $category));
 
-        return redirect()->route('zis.receipts.index')->with('success', 'Penerimaan ZIS berhasil disimpan.');
+        return redirect()->route('zis.receipts.show', $receipt)->with('success', 'Penerimaan ZIS berhasil disimpan. Bukti tanda terima digital sudah tersedia.');
     }
 
     public function show(ZisReceipt $receipt): View
@@ -54,8 +54,35 @@ class ZisReceiptController extends Controller
         $this->ensureOwnReceipt($receipt);
         $receipt->load(['cashAccount', 'category', 'distributions.cashAccount', 'distributions.category']);
         $receipt->loadSum('distributions as distributed_amount', 'amount');
+        $receipt->ensurePublicReceiptToken();
+        $publicReceiptUrl = route('zis.penerimaan.receipt.public', $receipt->public_receipt_token);
 
-        return view('admin.zis.receipts.show', compact('receipt'));
+        return view('admin.zis.receipts.show', compact('publicReceiptUrl', 'receipt'));
+    }
+
+    public function kwitansi(ZisReceipt $receipt): View
+    {
+        $this->ensureOwnReceipt($receipt);
+        $receipt->load(['cashAccount', 'category']);
+        $receipt->ensurePublicReceiptToken();
+
+        $activeMosque = auth()->user()?->activeMosque;
+        $receiptNumber = $receipt->receiptNumber();
+
+        return view('admin.zis.receipts.kwitansi', compact('activeMosque', 'receipt', 'receiptNumber'));
+    }
+
+    public function publicReceipt(string $token): View
+    {
+        $receipt = ZisReceipt::withoutGlobalScope('mosque')
+            ->with(['cashAccount', 'category', 'mosque.profile'])
+            ->where('public_receipt_token', $token)
+            ->firstOrFail();
+
+        $activeMosque = $receipt->mosque;
+        $receiptNumber = $receipt->receiptNumber();
+
+        return view('public.zis.receipt', compact('activeMosque', 'receipt', 'receiptNumber'));
     }
 
     public function edit(ZisReceipt $receipt): View
@@ -87,7 +114,9 @@ class ZisReceiptController extends Controller
 
         $receipt->update($this->payload($data, $category, $receipt));
 
-        return redirect()->route('zis.receipts.index')->with('success', 'Penerimaan ZIS berhasil diperbarui.');
+        $receipt->ensurePublicReceiptToken();
+
+        return redirect()->route('zis.receipts.show', $receipt)->with('success', 'Penerimaan ZIS berhasil diperbarui. Bukti tanda terima digital sudah tersedia.');
     }
 
     public function destroy(ZisReceipt $receipt)
@@ -171,10 +200,6 @@ class ZisReceiptController extends Controller
         return ZisCategory::where('mosque_id', $this->activeMosqueId())
             ->where(function ($query) use ($includeId) {
                 $query->where('is_active', true)
-                    ->when($includeId, fn ($q) => $q->orWhere('id', $includeId));
-            })
-            ->where(function ($query) use ($includeId) {
-                $query->where('can_receive_zis', true)
                     ->when($includeId, fn ($q) => $q->orWhere('id', $includeId));
             })
             ->orderBy('type')

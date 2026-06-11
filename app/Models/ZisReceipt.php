@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Traits\BelongsToMosque;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 class ZisReceipt extends Model
 {
@@ -21,6 +22,7 @@ class ZisReceipt extends Model
         'payment_method',
         'description',
         'proof_file',
+        'public_receipt_token',
         'created_by',
         'jenis_penerimaan',
         'muzakki_id',
@@ -43,6 +45,15 @@ class ZisReceipt extends Model
         'amount' => 'decimal:2',
         'nominal_uang' => 'decimal:2',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $receipt) {
+            if (! $receipt->public_receipt_token) {
+                $receipt->public_receipt_token = self::generatePublicReceiptToken();
+            }
+        });
+    }
 
     public function category()
     {
@@ -80,5 +91,28 @@ class ZisReceipt extends Model
         }
 
         return $remaining > 0 ? 'Sebagian' : 'Sudah Disalurkan';
+    }
+
+    public static function generatePublicReceiptToken(): string
+    {
+        do {
+            $token = Str::random(40);
+        } while (self::withoutGlobalScope('mosque')->where('public_receipt_token', $token)->exists());
+
+        return $token;
+    }
+
+    public function ensurePublicReceiptToken(): string
+    {
+        if (! $this->public_receipt_token) {
+            $this->forceFill(['public_receipt_token' => self::generatePublicReceiptToken()])->save();
+        }
+
+        return $this->public_receipt_token;
+    }
+
+    public function receiptNumber(): string
+    {
+        return sprintf('ZIS-%s-%06d', $this->receipt_date?->format('Y') ?? $this->tanggal?->format('Y') ?? now()->format('Y'), $this->id);
     }
 }
