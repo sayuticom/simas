@@ -49,7 +49,7 @@ class ZisDistributionController extends Controller
     ];
 
     private const OPERATIONAL_TRANSFER_CATEGORY = 'Transfer dari ZIS';
-//sayuti
+
     public function index(): View
     {
         $distributions = ZisDistribution::with(['cashAccount', 'category', 'receipt'])
