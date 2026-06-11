@@ -1,0 +1,333 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Transaction;
+use App\Models\CashAccount;
+use App\Models\TransactionCategory;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+use Illuminate\View\View;
+
+class TransactionController extends Controller
+{
+    public function index(Request $request): View
+    {
+        $statusType = $request->query('type');
+        $categoryId = $request->query('category_id');
+        $from = $request->query('from');
+        $to = $request->query('to');
+
+        $mosqueId = $this->activeMosqueId();
+        CashAccount::ensureDefaultsForMosque($mosqueId);
+        TransactionCategory::ensureDefaultsForMosque($mosqueId);
+
+        $categories = TransactionCategory::where('mosque_id', $mosqueId)
+            ->orderBy('name')
+            ->get();
+
+        $baseQuery = Transaction::with(['cashAccount', 'category', 'sourceDistribution'])
+            ->when($statusType, fn ($query, $value) => $query->where('type', $value))
+            ->when($categoryId, fn ($query, $value) => $query->where('transaction_category_id', $value))
+            ->when($from, fn ($query, $value) => $query->whereDate('transaction_date', '>=', $value))
+            ->when($to, fn ($query, $value) => $query->whereDate('transaction_date', '<=', $value));
+
+        $transactions = (clone $baseQuery)
+            ->orderByDesc('transaction_date')
+            ->paginate(10)
+            ->withQueryString();
+
+        $totalMasuk = (clone $baseQuery)->where('type', 'masuk')->sum('amount');
+        $totalKeluar = (clone $baseQuery)->where('type', 'keluar')->sum('amount');
+        $saldo = $totalMasuk - $totalKeluar;
+        $accountBalances = $this->operationalAccountBalances($mosqueId);
+
+        return view('admin.keuangan.index', compact('accountBalances', 'transactions', 'categories', 'totalMasuk', 'totalKeluar', 'saldo'));
+    }
+
+    public function create(): View
+    {
+        $mosqueId = $this->activeMosqueId();
+        CashAccount::ensureDefaultsForMosque($mosqueId);
+        TransactionCategory::ensureDefaultsForMosque($mosqueId);
+
+        $categories = TransactionCategory::where('mosque_id', $mosqueId)
+            ->where('is_active', true)
+            ->where('type', TransactionCategory::TYPE_KELUAR)
+            ->orderBy('name')
+            ->get();
+        $cashAccounts = $this->activeCashAccounts();
+        $selectedCategoryId = request('category_id');
+
+        return view('admin.keuangan.create', compact('cashAccounts', 'categories', 'selectedCategoryId'));
+    }
+
+    public function store(Request $request)
+    {
+        $data = $request->validate([
+            'transaction_date' => 'required|date',
+            'transaction_category_id' => [
+                'required',
+                Rule::exists('transaction_categories', 'id')
+                    ->where('mosque_id', $this->activeMosqueId()),
+            ],
+            'cash_account_id' => [
+                'required',
+                Rule::exists('cash_accounts', 'id')
+                    ->where('mosque_id', $this->activeMosqueId()),
+            ],
+            'amount' => 'required|numeric|min:0',
+            'description' => 'nullable|string',
+            'proof_file' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+        ]);
+
+        $category = $this->categoryForManualExpense((int) $data['transaction_category_id']);
+        $cashAccount = $this->ensureActiveCashAccount((int) $data['cash_account_id']);
+        $data['type'] = TransactionCategory::TYPE_KELUAR;
+        $data['payment_method'] = $cashAccount->paymentMethodValue();
+        $this->validateOperationalCashAccountBalance($data['cash_account_id'], (float) $data['amount']);
+
+        if ($request->hasFile('proof_file')) {
+            $data['proof_file'] = $request->file('proof_file')->store('proofs', 'public');
+        }
+
+        $data['created_by'] = auth()->user()?->name ?? 'Admin';
+
+        Transaction::create($data);
+
+        return redirect()->route('keuangan.index')->with('success', 'Transaksi berhasil disimpan.');
+    }
+
+    public function show(Transaction $transaction): View
+    {
+        $this->ensureOwnTransaction($transaction);
+        $transaction->load(['cashAccount', 'category', 'sourceDistribution']);
+
+        return view('admin.keuangan.show', compact('transaction'));
+    }
+
+    public function edit(Transaction $transaction): View
+    {
+        $this->ensureOwnTransaction($transaction);
+        $this->ensureNotWakafTransaction($transaction);
+
+        if ($transaction->type === TransactionCategory::TYPE_MASUK) {
+            $transaction->load(['cashAccount', 'category']);
+
+            return view('admin.keuangan.edit', [
+                'cashAccounts' => collect([$transaction->cashAccount])->filter(),
+                'categories' => collect(),
+                'transaction' => $transaction,
+                'readonly' => true,
+            ]);
+        }
+
+        $categories = TransactionCategory::where('mosque_id', $this->activeMosqueId())
+            ->where(function ($query) use ($transaction) {
+                $query->where(function ($activeExpenseQuery) {
+                    $activeExpenseQuery->where('is_active', true)
+                        ->where('type', TransactionCategory::TYPE_KELUAR);
+                })->orWhere('id', $transaction->transaction_category_id);
+            })
+            ->orderBy('name')
+            ->get();
+        $cashAccounts = $this->activeCashAccounts($transaction->cash_account_id);
+
+        return view('admin.keuangan.edit', compact('cashAccounts', 'transaction', 'categories'));
+    }
+
+    public function update(Request $request, Transaction $transaction)
+    {
+        $this->ensureOwnTransaction($transaction);
+        $this->ensureNotWakafTransaction($transaction);
+
+        if ($transaction->type !== TransactionCategory::TYPE_KELUAR) {
+            return redirect()
+                ->route('keuangan.transaksi.show', $transaction)
+                ->with('error', 'Transaksi pemasukan lama tidak bisa diedit melalui form pengeluaran manual.');
+        }
+
+        $data = $request->validate([
+            'transaction_date' => 'required|date',
+            'transaction_category_id' => [
+                'required',
+                Rule::exists('transaction_categories', 'id')
+                    ->where('mosque_id', $this->activeMosqueId()),
+            ],
+            'cash_account_id' => [
+                'required',
+                Rule::exists('cash_accounts', 'id')
+                    ->where('mosque_id', $this->activeMosqueId()),
+            ],
+            'amount' => 'required|numeric|min:0',
+            'description' => 'nullable|string',
+            'proof_file' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+        ]);
+
+        $category = $this->categoryForManualExpense((int) $data['transaction_category_id'], $transaction);
+        $cashAccount = $this->ensureActiveCashAccount((int) $data['cash_account_id'], $transaction->cash_account_id);
+        $data['type'] = TransactionCategory::TYPE_KELUAR;
+        $data['payment_method'] = $cashAccount->paymentMethodValue();
+        $this->validateOperationalCashAccountBalance($data['cash_account_id'], (float) $data['amount'], $transaction);
+
+        if ($request->hasFile('proof_file')) {
+            if ($transaction->proof_file && Storage::disk('public')->exists($transaction->proof_file)) {
+                Storage::disk('public')->delete($transaction->proof_file);
+            }
+
+            $data['proof_file'] = $request->file('proof_file')->store('proofs', 'public');
+        }
+
+        $transaction->update($data);
+
+        return redirect()->route('keuangan.index')->with('success', 'Transaksi berhasil diperbarui.');
+    }
+
+    public function destroy(Transaction $transaction)
+    {
+        $this->ensureOwnTransaction($transaction);
+
+        if ($transaction->isFromZisDistribution()) {
+            return back()->with('error', 'Transaksi ini berasal dari Penyaluran ZIS. Perubahan harus dilakukan dari Penyaluran ZIS.');
+        }
+
+        if ($transaction->isFromWakaf()) {
+            return back()->with('error', 'Transaksi Wakaf tidak boleh dihapus dari modul Keuangan. Hapus atau ubah data dari Modul Wakaf.');
+        }
+
+        if ($transaction->proof_file && Storage::disk('public')->exists($transaction->proof_file)) {
+            Storage::disk('public')->delete($transaction->proof_file);
+        }
+
+        $transaction->delete();
+
+        return redirect()->route('keuangan.index')->with('success', 'Transaksi berhasil dihapus.');
+    }
+
+    private function activeMosqueId(): int
+    {
+        return (int) session('active_mosque_id');
+    }
+
+    private function categoryForTransaction(int $categoryId): TransactionCategory
+    {
+        return TransactionCategory::where('mosque_id', $this->activeMosqueId())
+            ->findOrFail($categoryId);
+    }
+
+    private function ensureActiveCashAccount(int $id, ?int $includeId = null): CashAccount
+    {
+        $account = CashAccount::where('mosque_id', $this->activeMosqueId())->findOrFail($id);
+
+        if (! $account->is_active && (int) $account->id !== (int) $includeId) {
+            throw ValidationException::withMessages([
+                'cash_account_id' => 'Akun kas nonaktif tidak bisa dipilih.',
+            ]);
+        }
+
+        if (! $account->can_operational && (int) $account->id !== (int) $includeId) {
+            throw ValidationException::withMessages([
+                'cash_account_id' => 'Akun kas ini tidak diizinkan untuk Operasional.',
+            ]);
+        }
+
+        return $account;
+    }
+
+    private function activeCashAccounts(?int $includeId = null)
+    {
+        CashAccount::ensureDefaultsForMosque($this->activeMosqueId());
+
+        return CashAccount::where('mosque_id', $this->activeMosqueId())
+            ->where(function ($query) use ($includeId) {
+                $query->where('is_active', true)
+                    ->when($includeId, fn ($q) => $q->orWhere('id', $includeId));
+            })
+            ->where(function ($query) use ($includeId) {
+                $query->where('can_operational', true)
+                    ->when($includeId, fn ($q) => $q->orWhere('id', $includeId));
+            })
+            ->orderBy('type')
+            ->orderBy('name')
+            ->get();
+    }
+
+    private function operationalAccountBalance(int $cashAccountId, ?Transaction $ignoredTransaction = null): float
+    {
+        $account = CashAccount::where('mosque_id', $this->activeMosqueId())->findOrFail($cashAccountId);
+        $query = Transaction::where('mosque_id', $this->activeMosqueId())
+            ->where('cash_account_id', $cashAccountId);
+
+        if ($ignoredTransaction) {
+            $query->where('id', '!=', $ignoredTransaction->id);
+        }
+
+        $totalMasuk = (clone $query)->where('type', TransactionCategory::TYPE_MASUK)->sum('amount');
+        $totalKeluar = (clone $query)->where('type', TransactionCategory::TYPE_KELUAR)->sum('amount');
+
+        return $account->zisBalance() + $account->transferBalance() + ((float) $totalMasuk - (float) $totalKeluar);
+    }
+
+    private function validateOperationalCashAccountBalance(int $cashAccountId, float $amount, ?Transaction $transaction = null): void
+    {
+        $availableBalance = $this->operationalAccountBalance($cashAccountId, $transaction);
+
+        if ($amount > $availableBalance) {
+            throw ValidationException::withMessages([
+                'cash_account_id' => 'Saldo akun kas operasional tidak mencukupi. Saldo tersedia: Rp '.number_format($availableBalance, 0, ',', '.').'.',
+            ]);
+        }
+    }
+
+    private function operationalAccountBalances(int $mosqueId)
+    {
+        CashAccount::ensureDefaultsForMosque($mosqueId);
+
+        return CashAccount::where('mosque_id', $mosqueId)
+            ->orderBy('type')
+            ->orderBy('name')
+            ->get()
+            ->map(function (CashAccount $account) {
+                $account->operational_balance = $this->operationalAccountBalance($account->id);
+                $account->available_balance = $account->availableBalance();
+
+                return $account;
+            });
+    }
+
+    private function categoryForManualExpense(int $categoryId, ?Transaction $transaction = null): TransactionCategory
+    {
+        $category = $this->categoryForTransaction($categoryId);
+
+        if ($category->type !== TransactionCategory::TYPE_KELUAR) {
+            throw ValidationException::withMessages([
+                'transaction_category_id' => 'Kategori pemasukan tidak bisa dipilih untuk transaksi manual. Uang masuk dicatat melalui Modul ZIS.',
+            ]);
+        }
+
+        if (! $category->is_active && (int) $category->id !== (int) $transaction?->transaction_category_id) {
+            throw ValidationException::withMessages([
+                'transaction_category_id' => 'Kategori nonaktif tidak bisa dipilih untuk transaksi baru.',
+            ]);
+        }
+
+        return $category;
+    }
+
+    private function ensureOwnTransaction(Transaction $transaction): void
+    {
+        abort_unless((int) $transaction->mosque_id === $this->activeMosqueId(), 404);
+    }
+
+    private function ensureNotWakafTransaction(Transaction $transaction): void
+    {
+        if ($transaction->isFromWakaf()) {
+            redirect()
+                ->route('keuangan.transaksi.show', $transaction)
+                ->with('error', 'Transaksi ini berasal dari Modul Wakaf dan harus dikelola dari data sumbernya.')
+                ->throwResponse();
+        }
+    }
+}
