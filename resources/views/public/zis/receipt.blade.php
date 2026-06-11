@@ -105,6 +105,52 @@
             text-transform: uppercase;
         }
 
+        .verification {
+            align-items: center;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 16px;
+            display: flex;
+            gap: 18px;
+            justify-content: space-between;
+            margin: 0 0 22px;
+            padding: 16px;
+        }
+
+        .verification-text {
+            min-width: 0;
+        }
+
+        .verification-title {
+            font-size: 15px;
+            font-weight: 800;
+            margin: 0 0 4px;
+        }
+
+        .verification-note {
+            color: #4b5563;
+            font-size: 13px;
+            margin: 0;
+        }
+
+        .qr-box {
+            background: #fff;
+            border: 1px solid #d1d5db;
+            border-radius: 12px;
+            flex: 0 0 auto;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .qr-caption {
+            color: #4b5563;
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 1.35;
+            margin: 7px 0 0;
+            max-width: 150px;
+        }
+
         .title {
             font-size: 24px;
             font-weight: 800;
@@ -193,6 +239,11 @@
                 font-size: 21px;
             }
 
+            .verification {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
             td.label {
                 width: 42%;
             }
@@ -237,6 +288,7 @@
         $receiptAmount = $receipt->amount ?? $receipt->nominal_uang ?? 0;
         $petugas = $receipt->created_by ?: $receipt->diterima_oleh;
         $logo = $activeMosque?->profile?->logo;
+        $publicReceiptUrl = route('zis.penerimaan.receipt.public', $receipt->public_receipt_token);
     @endphp
 
     <div class="toolbar">
@@ -259,9 +311,19 @@
         </header>
 
         <section class="body">
-            <span class="status">Sah / Tercatat di Sistem</span>
-            <h1 class="title">Bukti Tanda Terima ZIS</h1>
-            <p class="subtitle">Bukti digital ini diterbitkan oleh sistem SIMAS berdasarkan data penerimaan masjid.</p>
+            <div class="verification">
+                <div class="verification-text">
+                    <span class="status">Sah / Tercatat di Sistem</span>
+                    <h1 class="title">Bukti Tanda Terima ZIS</h1>
+                    <p class="subtitle">Bukti digital ini diterbitkan oleh sistem SIMAS berdasarkan data penerimaan masjid.</p>
+                    <p class="verification-title">Verifikasi bukti digital</p>
+                    <p class="verification-note">QR Code ini mengarah ke halaman bukti digital yang sama.</p>
+                </div>
+                <div class="qr-box">
+                    {!! \SimpleSoftwareIO\QrCode\Facades\QrCode::size(140)->margin(1)->generate($publicReceiptUrl) !!}
+                    <p class="qr-caption">Scan untuk verifikasi bukti penerimaan digital.</p>
+                </div>
+            </div>
 
             <table>
                 <tr>
