@@ -9,6 +9,7 @@ use App\Models\ZisProgram;
 use App\Models\ZisReceipt;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -30,23 +31,68 @@ class ZisReceiptController extends Controller
         $categories = $this->activeCategories();
         $cashAccounts = $this->activeCashAccounts();
 
-        return view('admin.zis.receipts.create', compact('cashAccounts', 'categories'));
+        // Generate a one-time form token to prevent double submit via browser Back
+        $formToken = bin2hex(random_bytes(16));
+        session(['zis_receipt_form_token' => $formToken]);
+
+        return view('admin.zis.receipts.create', compact('cashAccounts', 'categories', 'formToken'));
     }
 
     public function store(Request $request)
     {
-        $data = $this->validatedData($request);
+        // Check one-time form token before validating
+        $sessionToken = session('zis_receipt_form_token');
+        $formToken = $request->input('form_token');
+
+        if (! $formToken || ! $sessionToken || ! hash_equals($sessionToken, $formToken)) {
+            return redirect()->route('zis.receipts.index')
+                ->with('error', 'Form ini sudah diproses. Silakan buat penerimaan baru jika ingin input transaksi lain.');
+        }
+
+        // Run validation first. If validation fails, token remains in session so user can correct and resubmit.
+        $data = $this->validatedData($request, null);
+
         $category = $this->category((int) $data['zis_category_id']);
         abort_unless($category->is_active, 422, 'Kategori ZIS nonaktif tidak bisa dipilih.');
         $this->ensureActiveCashAccount((int) $data['cash_account_id']);
 
-        if ($request->hasFile('proof_file')) {
-            $data['proof_file'] = $request->file('proof_file')->store('zis/receipts', 'public');
+        // Invalidate token now to prevent reuse (before file upload / DB operations)
+        session()->forget('zis_receipt_form_token');
+
+        // Wrap storage + DB create in a transaction; delete stored file if rollback
+        $filePath = null;
+
+        DB::beginTransaction();
+        try {
+            if ($request->hasFile('proof_file')) {
+                $filePath = $request->file('proof_file')->store('zis/receipts', 'public');
+                $data['proof_file'] = $filePath;
+            }
+
+            $receipt = ZisReceipt::create($this->payload($data, $category));
+
+            // Ensure public token exists
+            $receipt->ensurePublicReceiptToken();
+
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            // remove uploaded file to avoid orphan
+            if ($filePath) {
+                Storage::disk('public')->delete($filePath);
+            }
+
+            // regenerate a new token so user can retry safely
+            $newToken = bin2hex(random_bytes(16));
+            session(['zis_receipt_form_token' => $newToken]);
+
+            return redirect()->route('zis.receipts.create')->withInput()->with('error', 'Terjadi kesalahan saat menyimpan. Silakan coba lagi.');
         }
 
-        $receipt = ZisReceipt::create($this->payload($data, $category));
+        $publicReceiptUrl = route('zis.penerimaan.receipt.public', $receipt->public_receipt_token);
 
-        return redirect()->route('zis.receipts.show', $receipt)->with('success', 'Penerimaan ZIS berhasil disimpan. Bukti tanda terima digital sudah tersedia.');
+        return redirect($publicReceiptUrl)->with('success', 'Penerimaan ZIS berhasil disimpan. Bukti tanda terima digital sudah tersedia.');
     }
 
     public function show(ZisReceipt $receipt): View
@@ -97,7 +143,7 @@ class ZisReceiptController extends Controller
     public function update(Request $request, ZisReceipt $receipt)
     {
         $this->ensureOwnReceipt($receipt);
-        $data = $this->validatedData($request);
+        $data = $this->validatedData($request, $receipt);
         $category = $this->category((int) $data['zis_category_id']);
         abort_if(! $category->is_active && (int) $category->id !== (int) $receipt->zis_category_id, 422, 'Kategori ZIS nonaktif tidak bisa dipilih.');
         $this->ensureActiveCashAccount((int) $data['cash_account_id'], $receipt->cash_account_id);
@@ -138,8 +184,14 @@ class ZisReceiptController extends Controller
         return redirect()->route('zis.receipts.index')->with('success', 'Penerimaan ZIS berhasil dihapus.');
     }
 
-    private function validatedData(Request $request): array
+    private function validatedData(Request $request, ?ZisReceipt $receipt = null): array
     {
+        $proofRule = $receipt && $receipt->proof_file ? 'nullable' : 'required';
+
+        $messages = [
+            'proof_file.required' => 'Bukti transfer / lampiran / foto penyerahan dana wajib diisi.',
+        ];
+
         return $request->validate([
             'zis_category_id' => [
                 'required',
@@ -156,8 +208,8 @@ class ZisReceiptController extends Controller
             'donor_phone' => 'nullable|string|max:50',
             'amount' => 'required|numeric|min:0',
             'description' => 'nullable|string',
-            'proof_file' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:4096',
-        ]);
+            'proof_file' => $proofRule . '|file|mimes:jpg,jpeg,png,pdf|max:4096',
+        ], $messages);
     }
 
     private function payload(array $data, ZisCategory $category, ?ZisReceipt $receipt = null): array

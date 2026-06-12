@@ -59,22 +59,20 @@ class ZisDistributionController extends Controller
         return view('admin.zis.distributions.index', compact('distributions'));
     }
 
-    public function create(Request $request): View|RedirectResponse
+    public function create(Request $request): View
     {
+        // allow opening distribution form without requiring a source receipt
         $sourceReceipt = $this->sourceReceiptFromRequest($request);
 
-        if (! $sourceReceipt) {
-            return redirect()
-                ->route('zis.receipts.index')
-                ->with('error', 'Pilih penerimaan ZIS yang masih punya sisa dana sebelum membuat penyaluran.');
-        }
+        $preselectedCategoryId = $request->integer('category_id') ?: ($sourceReceipt?->zis_category_id ?? null);
+        $preselectedCashAccountId = $request->integer('cash_account_id') ?: ($sourceReceipt?->cash_account_id ?? null);
 
-        $categories = $this->activeCategories($sourceReceipt?->zis_category_id);
-        $cashAccounts = $this->activeCashAccounts($sourceReceipt?->zis_category_id, $sourceReceipt?->cash_account_id);
+        $categories = $this->activeCategories($preselectedCategoryId);
+        $cashAccounts = $this->activeCashAccounts($preselectedCategoryId, $preselectedCashAccountId);
         $recipientTypes = self::RECIPIENT_TYPES;
         $distributionTargets = self::DISTRIBUTION_TARGETS;
 
-        return view('admin.zis.distributions.create', compact('cashAccounts', 'categories', 'distributionTargets', 'recipientTypes', 'sourceReceipt'));
+        return view('admin.zis.distributions.create', compact('cashAccounts', 'categories', 'distributionTargets', 'recipientTypes', 'sourceReceipt', 'preselectedCategoryId', 'preselectedCashAccountId'));
     }
 
     public function store(Request $request)
@@ -83,7 +81,9 @@ class ZisDistributionController extends Controller
         $sourceReceipt = $this->sourceReceiptFromData($data);
         $category = $sourceReceipt?->category ?? $this->category($data['zis_category_id'] ?? null);
         abort_if($category && ! $category->is_active, 422, 'Kategori ZIS nonaktif tidak bisa dipilih.');
-        $this->ensureActiveCashAccount((int) $data['cash_account_id']);
+        if (! empty($data['cash_account_id'])) {
+            $this->ensureActiveCashAccount((int) $data['cash_account_id']);
+        }
         $this->validateSourceReceipt($data, $sourceReceipt);
         $this->validateFundUsage($data, $category);
         $this->validateRemainingAmount($data, $sourceReceipt);
@@ -130,7 +130,9 @@ class ZisDistributionController extends Controller
         $sourceReceipt = $this->sourceReceiptFromData($data);
         $category = $sourceReceipt?->category ?? $this->category($data['zis_category_id'] ?? null);
         abort_if($category && ! $category->is_active && (int) $category->id !== (int) $distribution->zis_category_id, 422, 'Kategori ZIS nonaktif tidak bisa dipilih.');
-        $this->ensureActiveCashAccount((int) $data['cash_account_id'], $distribution->cash_account_id);
+        if (! empty($data['cash_account_id'])) {
+            $this->ensureActiveCashAccount((int) $data['cash_account_id'], $distribution->cash_account_id);
+        }
         $this->validateSourceReceipt($data, $sourceReceipt);
         $this->validateFundUsage($data, $category);
         $this->validateRemainingAmount($data, $sourceReceipt, $distribution);
@@ -193,7 +195,7 @@ class ZisDistributionController extends Controller
                     ->where('mosque_id', $this->activeMosqueId()),
             ],
             'cash_account_id' => [
-                'required',
+                'nullable',
                 Rule::exists('cash_accounts', 'id')
                     ->where('mosque_id', $this->activeMosqueId()),
             ],
@@ -221,7 +223,7 @@ class ZisDistributionController extends Controller
             'mosque_id' => $this->activeMosqueId(),
             'zis_receipt_id' => $data['zis_receipt_id'] ?? null,
             'zis_category_id' => $category?->id,
-            'cash_account_id' => $data['cash_account_id'],
+            'cash_account_id' => $data['cash_account_id'] ?? null,
             'distribution_date' => $data['distribution_date'],
             'recipient_name' => $recipientName,
             'recipient_phone' => $data['recipient_phone'] ?? null,
@@ -543,17 +545,15 @@ class ZisDistributionController extends Controller
             ]);
         }
 
+        // kategori harus mengizinkan transfer ke kas operasional jika target adalah kas_operasional
         if ($data['distribution_target'] === 'kas_operasional' && ! $category->allow_operational_transfer) {
             throw ValidationException::withMessages([
                 'distribution_target' => 'Dana ini tidak boleh dipindahkan ke Kas Operasional karena termasuk dana terikat/khusus.',
             ]);
         }
 
-        if ($data['distribution_target'] === 'kas_operasional' && empty($data['zis_receipt_id'])) {
-            throw ValidationException::withMessages([
-                'zis_receipt_id' => 'Transfer ke Kas Operasional wajib terhubung ke penerimaan ZIS asal.',
-            ]);
-        }
+        // NOTE: tidak lagi mewajibkan zis_receipt_id untuk transfer ke kas operasional.
+        // Validasi kecukupan saldo kategori dan saldo kategori per akun kas dilakukan di validateCategoryBalance dan validateCashAccountCategoryBalance.
 
         if ($category->isZakat()) {
             if ($data['distribution_target'] === 'kas_operasional') {
@@ -588,7 +588,7 @@ class ZisDistributionController extends Controller
             ]);
         }
 
-        if ((int) $data['cash_account_id'] !== (int) $sourceReceipt->cash_account_id) {
+        if (isset($data['cash_account_id']) && (int) $data['cash_account_id'] !== (int) $sourceReceipt->cash_account_id) {
             throw ValidationException::withMessages([
                 'cash_account_id' => 'Akun kas penyaluran harus sama dengan akun kas sumber penerimaan.',
             ]);
@@ -647,7 +647,7 @@ class ZisDistributionController extends Controller
 
     private function validateCashAccountCategoryBalance(array $data, ?ZisCategory $category, ?ZisDistribution $distribution = null): void
     {
-        if (! $category) {
+        if (! $category || empty($data['cash_account_id'])) {
             return;
         }
 

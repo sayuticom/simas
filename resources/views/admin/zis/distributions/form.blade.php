@@ -23,13 +23,14 @@
         @error('distribution_date')<p class="text-sm text-red-600">{{ $message }}</p>@enderror
     </div>
     <div>
-        <label class="block text-sm font-semibold text-gray-700">Kategori ZIS</label>
+        <label class="block text-sm font-semibold text-gray-700">Sumber Dana / Kategori ZIS</label>
         <select id="zis-category-id" name="zis_category_id" class="mt-2 w-full rounded-lg border px-4 py-3" required>
             <option value="">Pilih kategori dana</option>
             @foreach($categories as $category)
                 @php
                     $categoryBalance = $category->available_balance ?? 0;
-                    $isSelectedCategory = old('zis_category_id', $sourceReceipt?->zis_category_id ?? $distribution?->zis_category_id) == $category->id;
+                    $selectedCategoryId = old('zis_category_id', $preselectedCategoryId ?? $sourceReceipt?->zis_category_id ?? $distribution?->zis_category_id);
+                    $isSelectedCategory = $selectedCategoryId == $category->id;
                 @endphp
                 <option
                     value="{{ $category->id }}"
@@ -51,29 +52,6 @@
         @unless($sourceReceipt)
             <p id="category-balance-note" class="mt-1 text-xs font-semibold text-indigo-700"></p>
         @endunless
-    </div>
-    <div>
-        <label class="block text-sm font-semibold text-gray-700">Sumber Dana / Akun Kas</label>
-        <select name="cash_account_id" class="mt-2 w-full rounded-lg border px-4 py-3" required>
-            <option value="">Pilih akun kas</option>
-            @foreach($cashAccounts as $account)
-                @php
-                    $accountBalance = $account->available_balance;
-                    $isSelectedAccount = old('cash_account_id', $sourceReceipt?->cash_account_id ?? $distribution?->cash_account_id) == $account->id;
-                @endphp
-                <option
-                    value="{{ $account->id }}"
-                    {{ $isSelectedAccount ? 'selected' : '' }}
-                    {{ $accountBalance !== null && $accountBalance <= 0 && ! $isSelectedAccount ? 'disabled' : '' }}
-                >
-                    {{ $account->name }} - {{ $account->accountTypeLabel() }}
-                    @if($accountBalance !== null)
-                        | Saldo kategori: Rp {{ number_format($accountBalance, 0, ',', '.') }}
-                    @endif
-                </option>
-            @endforeach
-        </select>
-        @error('cash_account_id')<p class="text-sm text-red-600">{{ $message }}</p>@enderror
     </div>
     <div>
         <label class="block text-sm font-semibold text-gray-700">Tujuan Penyaluran</label>

@@ -292,7 +292,10 @@
     @endphp
 
     <div class="toolbar">
-        <button type="button" class="button button-primary" onclick="window.print()">Cetak jika diperlukan</button>
+        @if(auth()->check())
+            <a href="{{ route('zis.receipts.index') }}" class="button">Kembali ke Penerimaan ZIS</a>
+        @endif
+        <button type="button" class="button button-primary" onclick="window.print()">Cetak</button>
         <button type="button" class="button" onclick="copyReceiptUrl()">Salin Link</button>
     </div>
 

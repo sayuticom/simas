@@ -12,11 +12,15 @@ class TransactionCategoryController extends Controller
 {
     public function index(): View
     {
+        // Only superuser may manage categories
+        abort_unless(auth()->user()->isSuperuser(), 403);
+
         $mosqueId = $this->activeMosqueId();
-        TransactionCategory::ensureDefaultsForMosque($mosqueId);
+        // Ensure default categories exist across all mosques
+        TransactionCategory::ensureDefaultsForAllMosques();
 
         $categories = TransactionCategory::where('mosque_id', $mosqueId)
-            ->orderBy('type')
+            ->where('type', TransactionCategory::TYPE_KELUAR)
             ->orderBy('name')
             ->get();
 
@@ -27,6 +31,8 @@ class TransactionCategoryController extends Controller
 
     public function create(Request $request): View
     {
+        abort_unless(auth()->user()->isSuperuser(), 403);
+
         $typeOptions = TransactionCategory::TYPE_OPTIONS;
         $returnTo = $request->query('return_to');
         $transactionId = $request->query('transaction_id');
@@ -36,6 +42,8 @@ class TransactionCategoryController extends Controller
 
     public function store(Request $request)
     {
+        abort_unless(auth()->user()->isSuperuser(), 403);
+
         $mosqueId = $this->activeMosqueId();
 
         $data = $request->validate([
@@ -90,6 +98,7 @@ class TransactionCategoryController extends Controller
 
     public function edit(TransactionCategory $category): View
     {
+        abort_unless(auth()->user()->isSuperuser(), 403);
         $this->ensureOwnCategory($category);
         $typeOptions = TransactionCategory::TYPE_OPTIONS;
 
@@ -98,6 +107,7 @@ class TransactionCategoryController extends Controller
 
     public function update(Request $request, TransactionCategory $category)
     {
+        abort_unless(auth()->user()->isSuperuser(), 403);
         $this->ensureOwnCategory($category);
         $mosqueId = $this->activeMosqueId();
 
@@ -127,6 +137,7 @@ class TransactionCategoryController extends Controller
 
     public function destroy(TransactionCategory $category)
     {
+        abort_unless(auth()->user()->isSuperuser(), 403);
         $this->ensureOwnCategory($category);
 
         if ($category->transactions()->exists()) {

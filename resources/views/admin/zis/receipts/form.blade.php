@@ -44,9 +44,9 @@
         @error('amount')<p class="text-sm text-red-600">{{ $message }}</p>@enderror
     </div>
     <div>
-        <label class="block text-sm font-semibold text-gray-700">Bukti Transfer / Lampiran</label>
+        <label class="block text-sm font-semibold text-gray-700">Bukti Transfer / Lampiran / Photo Penyerahan Dana</label>
         <input type="file" name="proof_file" accept="image/*,.pdf" class="mt-2 w-full text-sm">
-        <p class="mt-1 text-xs text-gray-500">Opsional. Diisi jika donatur/muzakki mengirim bukti transfer, QRIS, atau lampiran pembayaran.</p>
+        <p class="mt-1 text-xs text-gray-500">Wajib diisi. Upload bukti transfer, QRIS, lampiran pembayaran, atau foto penyerahan dana.</p>
         @error('proof_file')<p class="text-sm text-red-600">{{ $message }}</p>@enderror
     </div>
 </div>

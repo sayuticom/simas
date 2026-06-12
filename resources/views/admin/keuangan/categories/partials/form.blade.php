@@ -6,12 +6,8 @@
     </div>
     <div>
         <label class="block text-sm font-semibold text-gray-700">Tipe Transaksi</label>
-        <select name="type" class="mt-2 w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-indigo-500 focus:ring-indigo-500" required>
-            <option value="">Pilih tipe</option>
-            @foreach($typeOptions as $value => $label)
-                <option value="{{ $value }}" {{ old('type', $category?->type) === $value ? 'selected' : '' }}>{{ $label }}</option>
-            @endforeach
-        </select>
+        <input type="hidden" name="type" value="{{ old('type', $category?->type ?? 'keluar') }}">
+        <p class="mt-2 text-sm text-gray-600">Keluar (kategori pengeluaran operasional)</p>
         @error('type')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
     </div>
 </div>

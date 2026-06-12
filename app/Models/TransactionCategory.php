@@ -19,27 +19,40 @@ class TransactionCategory extends Model
     ];
 
     public const DEFAULT_CATEGORIES = [
-        self::TYPE_MASUK => [
-            "Infak Jum'at",
-            'Kotak Amal',
-            'Donasi Jamaah',
-            'Wakaf Tunai',
-            'Zakat',
-            'Sedekah',
-            'Sewa Aula',
-            'Bantuan Pemerintah',
-        ],
+        // Default keluar categories applied per mosque
         self::TYPE_KELUAR => [
-            'Operasional Masjid',
-            'Listrik & Air',
-            'Kebersihan',
-            'Konsumsi',
-            'Honor Petugas',
-            'Perbaikan Bangunan',
             'Dakwah & Kajian',
-            'Sosial Jamaah',
+            'Honor Petugas',
+            'Kebersihan',
+            'Listrik & Air',
+            'ATK & Administrasi',
+            'Konsumsi',
+            'Perawatan Masjid',
+            'Transportasi',
+            'Perlengkapan Ibadah',
+            'Keamanan',
+            'Biaya Admin Bank',
+            'Lainnya',
         ],
     ];
+
+    /**
+     * Ensure default categories exist for all mosques.
+     */
+    public static function ensureDefaultsForAllMosques(): void
+    {
+        // Avoid pulling large models if not necessary; use Mosque model to get ids
+        $mosqueModel = app()->makeIf(\App\Models\Mosque::class);
+        if (! $mosqueModel) {
+            return;
+        }
+
+        $mosqueIds = \App\Models\Mosque::query()->pluck('id')->all();
+
+        foreach ($mosqueIds as $mosqueId) {
+            self::ensureDefaultsForMosque($mosqueId);
+        }
+    }
 
     protected $fillable = [
         'mosque_id',

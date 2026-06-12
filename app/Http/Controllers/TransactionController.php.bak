@@ -107,29 +107,21 @@ class TransactionController extends Controller
                     ->where('mosque_id', $this->activeMosqueId()),
             ],
             'cash_account_id' => [
-                'nullable',
+                'required',
                 Rule::exists('cash_accounts', 'id')
                     ->where('mosque_id', $this->activeMosqueId()),
             ],
             'amount' => 'required|numeric|min:0',
             'description' => 'nullable|string',
-            'proof_file' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'proof_file' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
         ]);
 
         $category = $this->categoryForManualExpense((int) $data['transaction_category_id']);
-
-        // handle optional cash account: if provided, validate and set payment method, else leave null
-        if (! empty($data['cash_account_id'])) {
-            $cashAccount = $this->ensureActiveCashAccount((int) $data['cash_account_id']);
-            $data['payment_method'] = $cashAccount->paymentMethodValue();
-            $this->validateOperationalCashAccountBalance($data['cash_account_id'], (float) $data['amount']);
-        } else {
-            $data['cash_account_id'] = null;
-            $data['payment_method'] = null;
-        }
-
+        $cashAccount = $this->ensureActiveCashAccount((int) $data['cash_account_id']);
         $data['type'] = TransactionCategory::TYPE_KELUAR;
-        // additional overall operational balance check to prevent overall negative
+        $data['payment_method'] = $cashAccount->paymentMethodValue();
+        $this->validateOperationalCashAccountBalance($data['cash_account_id'], (float) $data['amount']);
+n        // additional overall operational balance check to prevent overall negative
         $mosqueId = $this->activeMosqueId();
         $receiptsOperational = \App\Models\ZisReceipt::where('mosque_id', $mosqueId)
             ->whereHas('category', function ($q) {
@@ -142,7 +134,7 @@ class TransactionController extends Controller
                 $q->whereNull('source_type')
                     ->orWhere('source_type', '!=', Transaction::SOURCE_ZIS_DISTRIBUTION);
             })->sum('amount');
-        $totalMasukOperational = (float) $receiptsOperational + (float) $transactionsMasuk;
+n        $totalMasukOperational = (float) $receiptsOperational + (float) $transactionsMasuk;
         $totalKeluarOperational = Transaction::where('mosque_id', $mosqueId)->where('type', 'keluar')->sum('amount');
         $operationalBalance = $totalMasukOperational - $totalKeluarOperational;
 
@@ -198,27 +190,7 @@ class TransactionController extends Controller
             ->get();
         $cashAccounts = $this->activeCashAccounts($transaction->cash_account_id);
 
-        // compute operational balance for edit form
-        $mosqueId = $this->activeMosqueId();
-        $receiptsOperational = \App\Models\ZisReceipt::where('mosque_id', $mosqueId)
-            ->whereHas('category', function ($q) {
-                $q->where('allow_operational_transfer', true);
-            })->sum('amount');
-
-        $transactionsMasuk = Transaction::where('mosque_id', $mosqueId)
-            ->where('type', 'masuk')
-            ->where(function ($q) {
-                $q->whereNull('source_type')
-                    ->orWhere('source_type', '!=', Transaction::SOURCE_ZIS_DISTRIBUTION);
-            })->sum('amount');
-
-        $totalMasukOperational = (float) $receiptsOperational + (float) $transactionsMasuk;
-        $totalKeluarOperational = Transaction::where('mosque_id', $mosqueId)->where('type', 'keluar')->sum('amount');
-        $operationalBalance = $totalMasukOperational - $totalKeluarOperational;
-
-        $accountBalances = $this->operationalAccountBalances($this->activeMosqueId());
-
-        return view('admin.keuangan.edit', compact('cashAccounts', 'transaction', 'categories', 'operationalBalance', 'accountBalances'));
+        return view('admin.keuangan.edit', compact('cashAccounts', 'transaction', 'categories'));
     }
 
     public function update(Request $request, Transaction $transaction)
@@ -240,7 +212,7 @@ class TransactionController extends Controller
                     ->where('mosque_id', $this->activeMosqueId()),
             ],
             'cash_account_id' => [
-                'nullable',
+                'required',
                 Rule::exists('cash_accounts', 'id')
                     ->where('mosque_id', $this->activeMosqueId()),
             ],
@@ -250,19 +222,10 @@ class TransactionController extends Controller
         ]);
 
         $category = $this->categoryForManualExpense((int) $data['transaction_category_id'], $transaction);
-
-        // if cash_account_id provided, validate it and preserve behavior; otherwise keep existing account unchanged
-        if (array_key_exists('cash_account_id', $data) && ! empty($data['cash_account_id'])) {
-            $cashAccount = $this->ensureActiveCashAccount((int) $data['cash_account_id'], $transaction->cash_account_id);
-            $data['payment_method'] = $cashAccount->paymentMethodValue();
-            $this->validateOperationalCashAccountBalance($data['cash_account_id'], (float) $data['amount'], $transaction);
-        } else {
-            // remove keys so update won't overwrite existing cash_account/payment_method
-            unset($data['cash_account_id']);
-            unset($data['payment_method']);
-        }
-
+        $cashAccount = $this->ensureActiveCashAccount((int) $data['cash_account_id'], $transaction->cash_account_id);
         $data['type'] = TransactionCategory::TYPE_KELUAR;
+        $data['payment_method'] = $cashAccount->paymentMethodValue();
+        $this->validateOperationalCashAccountBalance($data['cash_account_id'], (float) $data['amount'], $transaction);
 
         if ($request->hasFile('proof_file')) {
             if ($transaction->proof_file && Storage::disk('public')->exists($transaction->proof_file)) {
@@ -440,6 +403,3 @@ class TransactionController extends Controller
         }
     }
 }
-
-
-

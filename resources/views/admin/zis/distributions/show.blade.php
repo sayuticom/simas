@@ -12,7 +12,6 @@
     <div class="grid gap-4 md:grid-cols-2">
         <div class="rounded-lg bg-gray-50 p-4"><p class="text-sm text-gray-500">Tanggal</p><p class="font-semibold">{{ $distribution->distribution_date?->format('d-m-Y') }}</p></div>
         <div class="rounded-lg bg-gray-50 p-4"><p class="text-sm text-gray-500">Kategori</p><p class="font-semibold">{{ $distribution->category?->name ?? '-' }}</p></div>
-        <div class="rounded-lg bg-gray-50 p-4"><p class="text-sm text-gray-500">Sumber Akun Kas</p><p class="font-semibold">{{ $distribution->cashAccount?->name ?? '-' }}</p></div>
         <div class="rounded-lg bg-gray-50 p-4 md:col-span-2">
             <p class="text-sm text-gray-500">Sumber Penerimaan</p>
             @if($distribution->receipt)
@@ -51,10 +50,6 @@
                         <div>
                             <p class="text-xs text-green-700">Kategori</p>
                             <p class="font-semibold text-gray-800">{{ $distribution->operationalTransaction->category?->name ?? 'Transfer dari ZIS' }}</p>
-                        </div>
-                        <div>
-                            <p class="text-xs text-green-700">Akun Kas</p>
-                            <p class="font-semibold text-gray-800">{{ $distribution->operationalTransaction->cashAccount?->name ?? '-' }}</p>
                         </div>
                     </div>
                 @else

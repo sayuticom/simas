@@ -14,9 +14,9 @@
     <div class="flex items-center justify-between gap-4 mb-6">
         <div>
             <h2 class="text-lg font-bold text-gray-800">Penyaluran ZIS</h2>
-            <p class="text-sm text-gray-500">Dana ZIS yang sudah disalurkan. Untuk membuat penyaluran baru, mulai dari penerimaan yang masih punya sisa dana.</p>
+    <p class="text-sm text-gray-500">Daftar penyaluran ZIS berdasarkan kategori dana.</p>
         </div>
-        <a href="{{ route('zis.receipts.index') }}" class="rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700">Pilih Penerimaan untuk Disalurkan</a>
+        <a href="{{ route('zis.distributions.create') }}" class="rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700">Tambah Penyaluran</a>
     </div>
     <div class="overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-200">
@@ -27,7 +27,6 @@
                     <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Tujuan</th>
                     <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Sumber Penerimaan</th>
                     <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Kategori</th>
-                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Akun Kas</th>
                     <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Nominal</th>
                     <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Aksi</th>
                 </tr>
@@ -46,11 +45,10 @@
                             @if($distribution->receipt)
                                 {{ $distribution->receipt->donor_name ?: '-' }}
                             @else
-                                <span class="text-gray-500">Belum terpetakan</span>
+                                <span class="text-gray-500">Saldo Kategori</span>
                             @endif
                         </td>
                         <td class="px-4 py-4 text-sm text-gray-700">{{ $distribution->category?->name ?? '-' }}</td>
-                        <td class="px-4 py-4 text-sm text-gray-700">{{ $distribution->cashAccount?->name ?? '-' }}</td>
                         <td class="px-4 py-4 text-sm text-gray-700">Rp {{ number_format($distribution->amount ?? $distribution->nominal, 0, ',', '.') }}</td>
                         <td class="px-4 py-4 text-right text-sm space-x-2">
                             <a href="{{ route('zis.distributions.show', $distribution) }}" class="text-indigo-600 hover:text-indigo-900">Lihat</a>
@@ -63,7 +61,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="8" class="px-4 py-8 text-center text-sm text-gray-500">Belum ada penyaluran ZIS.</td></tr>
+                    <tr><td colspan="7" class="px-4 py-8 text-center text-sm text-gray-500">Belum ada penyaluran ZIS.</td></tr>
                 @endforelse
             </tbody>
         </table>

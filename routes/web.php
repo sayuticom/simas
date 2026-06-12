@@ -169,7 +169,8 @@ Route::middleware(['web', 'auth', \App\Http\Middleware\EnsureActiveMosque::class
         Route::resource('kategori', ZisCategoryController::class)
             ->except(['show'])
             ->parameters(['kategori' => 'category'])
-            ->names('categories');
+            ->names('categories')
+            ->middleware(\App\Http\Middleware\CheckRole::class . ':' . \App\Models\Role::ADMIN_MASJID);
         Route::get('/penerimaan/{receipt}/kwitansi', [ZisReceiptController::class, 'kwitansi'])->name('receipts.kwitansi');
         Route::resource('penerimaan', ZisReceiptController::class)
             ->parameters(['penerimaan' => 'receipt'])

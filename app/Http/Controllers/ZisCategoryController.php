@@ -14,11 +14,23 @@ class ZisCategoryController extends Controller
         $mosqueId = $this->activeMosqueId();
         ZisCategory::ensureDefaultsForMosque($mosqueId);
 
-        $categories = ZisCategory::withCount(['receipts', 'distributions'])
+        $categories = ZisCategory::withSum([
+            'receipts as total_receipts' => fn ($query) => $query->where('mosque_id', $mosqueId),
+        ], 'amount')
+            ->withSum([
+                'distributions as total_distributions' => fn ($query) => $query->where('mosque_id', $mosqueId),
+            ], 'amount')
             ->where('mosque_id', $mosqueId)
             ->orderBy('type')
             ->orderBy('name')
-            ->get();
+            ->get()
+            ->map(function (ZisCategory $category) {
+                $category->total_receipts = (float) ($category->total_receipts ?? 0);
+                $category->total_distributions = (float) ($category->total_distributions ?? 0);
+                $category->available_balance = max($category->total_receipts - $category->total_distributions, 0);
+
+                return $category;
+            });
         $typeOptions = ZisCategory::TYPE_OPTIONS;
         $usageOptions = ZisCategory::USAGE_OPTIONS;
 
@@ -133,6 +145,12 @@ class ZisCategoryController extends Controller
 
     private function ensureOwnCategory(ZisCategory $category): void
     {
+        // Disallow managing global categories (mosque_id = NULL) via mosque admin panel
+        if ($category->mosque_id === null) {
+            abort(403, 'Kategori global tidak dapat diubah melalui panel masjid.');
+        }
+
+        // Ensure the category belongs to the active mosque
         abort_unless((int) $category->mosque_id === $this->activeMosqueId(), 404);
     }
 

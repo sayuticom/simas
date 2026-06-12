@@ -314,26 +314,21 @@
                         </a>
                     </li>
 
-                    <!-- Keuangan Masjid -->
+                    <!-- Keuangan -->
                     <li>
                         <a href="{{ route('keuangan.index') }}" data-sidebar-link class="flex items-center px-3 py-2 rounded-lg {{ request()->routeIs('keuangan.*') ? 'bg-indigo-600 text-white' : 'text-gray-700 hover:bg-gray-100' }}">
                             <i class="fas fa-money-bill mr-3"></i>
-                            <span>Keuangan Operasional</span>
+                            <span>Keuangan</span>
                         </a>
                     </li>
                     <li class="pl-6">
                         <a href="{{ route('keuangan.index') }}" class="flex items-center px-3 py-1.5 rounded-lg text-sm {{ request()->routeIs('keuangan.index', 'keuangan.transaksi.*') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-600 hover:bg-gray-100' }}">
-                            Transaksi Keuangan
-                        </a>
-                    </li>
-                    <li class="pl-6">
-                        <a href="{{ route('keuangan.akun-kas.index') }}" class="flex items-center px-3 py-1.5 rounded-lg text-sm {{ request()->routeIs('keuangan.akun-kas.*') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-600 hover:bg-gray-100' }}">
-                            Akun Kas
+                            Operasional
                         </a>
                     </li>
                     <li class="pl-6">
                         <a href="{{ route('keuangan.mutasi-akun-kas.index') }}" class="flex items-center px-3 py-1.5 rounded-lg text-sm {{ request()->routeIs('keuangan.mutasi-akun-kas.*') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-600 hover:bg-gray-100' }}">
-                            Mutasi Akun Kas
+                            Mutasi Kas
                         </a>
                     </li>
 
@@ -359,11 +354,15 @@
                             Penyaluran ZIS
                         </a>
                     </li>
+                    @php $activeMosque = auth()->user()?->getActiveMosque(); @endphp
+                    @if(auth()->check() && (auth()->user()->isSuperuser() || ($activeMosque && auth()->user()->hasRoleInMosque(\App\Models\Role::ADMIN_MASJID, $activeMosque->id))))
                     <li class="pl-6">
                         <a href="{{ route('zis.categories.index') }}" class="flex items-center px-3 py-1.5 rounded-lg text-sm {{ request()->routeIs('zis.categories.*') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-600 hover:bg-gray-100' }}">
                             Kategori ZIS
                         </a>
                     </li>
+                    @endif
+
                     <li class="pl-6">
                         <a href="{{ route('zis.reports.index') }}" class="flex items-center px-3 py-1.5 rounded-lg text-sm {{ request()->routeIs('zis.reports.*') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-600 hover:bg-gray-100' }}">
                             Laporan ZIS
@@ -550,6 +549,12 @@
                             <li class="pl-6">
                                 <a href="{{ route('profile') }}" class="flex items-center px-3 py-1.5 rounded-lg text-sm {{ request()->routeIs('profile') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-600 hover:bg-gray-100' }}">
                                     Profil Masjid
+                                </a>
+                            </li>
+
+                            <li class="pl-6">
+                                <a href="{{ route('keuangan.akun-kas.index') }}" class="flex items-center px-3 py-1.5 rounded-lg text-sm {{ request()->routeIs('keuangan.akun-kas.*') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-600 hover:bg-gray-100' }}">
+                                    Akun Kas
                                 </a>
                             </li>
                         @endif

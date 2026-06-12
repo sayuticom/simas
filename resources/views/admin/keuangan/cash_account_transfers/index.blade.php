@@ -24,6 +24,32 @@
         </div>
     </div>
 
+    @if(isset($accounts) && $accounts->isNotEmpty())
+        <div class="mb-6">
+            <h3 class="text-md font-semibold text-gray-800 mb-3">Rekap Saldo Akun Kas</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                @foreach($accounts as $account)
+                    <div class="rounded-lg border border-gray-200 p-4 bg-white shadow-sm">
+                        <div class="flex items-start justify-between">
+                            <div>
+                                <p class="text-sm text-gray-600">{{ $account->name }}</p>
+                                <p class="mt-2 text-lg font-bold text-gray-900">Rp {{ number_format($account->available_balance ?? $account->availableBalance(), 0, ',', '.') }}</p>
+                            </div>
+                            <div class="text-sm">
+                                @if($account->is_active)
+                                    <span class="inline-flex items-center rounded-full bg-indigo-50 px-2 py-1 text-xs font-semibold text-indigo-700">Aktif</span>
+                                @else
+                                    <span class="inline-flex items-center rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-600">Nonaktif</span>
+                                @endif
+                            </div>
+                        </div>
+                        <p class="mt-2 text-xs text-gray-500">{{ $account->accountTypeLabel() }}</p>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    @endif
+
     <div class="overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">

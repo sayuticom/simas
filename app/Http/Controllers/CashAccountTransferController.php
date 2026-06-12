@@ -18,7 +18,10 @@ class CashAccountTransferController extends Controller
             ->latest('transfer_date')
             ->paginate(10);
 
-        return view('admin.keuangan.cash_account_transfers.index', compact('transfers'));
+        // include account balances recap for the current mosque
+        $accounts = $this->activeCashAccounts();
+
+        return view('admin.keuangan.cash_account_transfers.index', compact('transfers', 'accounts'));
     }
 
     public function create(): View

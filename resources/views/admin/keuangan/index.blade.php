@@ -1,7 +1,7 @@
 @extends('layouts.admin')
 
 @section('title', 'Keuangan Masjid - SIMAS')
-@section('page_title', 'Keuangan Masjid Umum')
+@section('page_title', 'Keuangan Operasional')
 
 @section('content')
 <div class="space-y-6">
@@ -18,56 +18,39 @@
 
     <div class="grid gap-6 xl:grid-cols-[320px_1fr]">
         <div class="bg-white rounded-lg shadow p-6">
-            <h2 class="text-lg font-bold text-gray-800 mb-4">Ringkasan Kas</h2>
+            <h2 class="text-lg font-bold text-gray-800 mb-4">Saldo Operasional</h2>
             <div class="space-y-4">
                 <div class="rounded-lg bg-green-50 p-4">
-                    <p class="text-sm text-gray-600">Total Kas Masuk</p>
+                    <p class="text-sm text-gray-600">Total Infak Masuk</p>
                     <p class="text-2xl font-bold text-green-700">Rp {{ number_format($totalMasuk, 0, ',', '.') }}</p>
                 </div>
                 <div class="rounded-lg bg-red-50 p-4">
-                    <p class="text-sm text-gray-600">Total Kas Keluar</p>
+                    <p class="text-sm text-gray-600">Total Pengeluaran</p>
                     <p class="text-2xl font-bold text-red-700">Rp {{ number_format($totalKeluar, 0, ',', '.') }}</p>
                 </div>
                 <div class="rounded-lg bg-indigo-50 p-4">
-                    <p class="text-sm text-gray-600">Saldo</p>
+                    <p class="text-sm text-gray-600">Saldo Operasional</p>
                     <p class="text-2xl font-bold text-indigo-700">Rp {{ number_format($saldo, 0, ',', '.') }}</p>
                 </div>
-                <div class="rounded-lg bg-gray-50 p-4">
-                    <p class="text-sm font-semibold text-gray-700">Saldo per Akun Kas</p>
-                    <div class="mt-3 space-y-2">
-                        @foreach($accountBalances as $account)
-                            <div class="flex items-center justify-between gap-3 text-sm">
-                                <span class="text-gray-600">{{ $account->name }}</span>
-                                <span class="font-semibold text-gray-900">Rp {{ number_format($account->operational_balance, 0, ',', '.') }}</span>
-                            </div>
-                        @endforeach
-                    </div>
-                </div>
+                <p class="mt-3 text-xs text-gray-600">Saldo operasional dihitung otomatis dari Penerimaan ZIS pada kategori yang boleh digunakan untuk operasional, ditambah pemasukan operasional lain, dikurangi pengeluaran operasional.</p>
             </div>
         </div>
         <div class="bg-white rounded-lg shadow p-6">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                     <h2 class="text-lg font-bold text-gray-800">Daftar Transaksi</h2>
-                    <p class="text-sm text-gray-500">Transaksi manual baru hanya untuk pengeluaran. Pemasukan lama tetap tampil sebagai riwayat.</p>
+                    <p class="text-sm text-gray-500">Transaksi operasional masjid. Pemasukan dari Penyaluran ZIS ke Operasional tampil otomatis, sedangkan pengeluaran dicatat manual.</p>
+                    <p class="text-xs text-gray-500 mt-1">Catatan: Transfer dari ZIS yang berasal dari penyaluran lama tetap tampil sebagai riwayat, tetapi tidak dihitung ganda dalam saldo operasional.</p>
                 </div>
                 <div class="flex flex-wrap gap-3">
-                    <a href="{{ route('keuangan.kategori.index') }}" class="inline-flex items-center gap-2 rounded-lg border border-indigo-600 px-5 py-3 text-indigo-600 hover:bg-indigo-50 transition"><i class="fas fa-tags"></i> Kategori</a>
-                    <a href="{{ route('keuangan.akun-kas.index') }}" class="inline-flex items-center gap-2 rounded-lg border border-indigo-600 px-5 py-3 text-indigo-600 hover:bg-indigo-50 transition"><i class="fas fa-wallet"></i> Akun Kas</a>
-                    <a href="{{ route('keuangan.mutasi-akun-kas.index') }}" class="inline-flex items-center gap-2 rounded-lg border border-indigo-600 px-5 py-3 text-indigo-600 hover:bg-indigo-50 transition"><i class="fas fa-right-left"></i> Mutasi</a>
+                    @if(auth()->user()->isSuperuser())
+                        <a href="{{ route('keuangan.kategori.index') }}" class="inline-flex items-center gap-2 rounded-lg border border-indigo-600 px-5 py-3 text-indigo-600 hover:bg-indigo-50 transition"><i class="fas fa-tags"></i> Kategori</a>
+                    @endif
                     <a href="{{ route('keuangan.transaksi.create') }}" class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-3 text-white hover:bg-indigo-700 transition"><i class="fas fa-plus"></i> Tambah Pengeluaran</a>
                 </div>
             </div>
 
-            <form action="{{ route('keuangan.index') }}" method="GET" class="mt-6 grid gap-4 lg:grid-cols-3">
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700">Jenis Transaksi</label>
-                    <select name="type" class="mt-2 w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-indigo-500 focus:ring-indigo-500">
-                        <option value="">Semua jenis</option>
-                        <option value="masuk" {{ request('type') === 'masuk' ? 'selected' : '' }}>Masuk</option>
-                        <option value="keluar" {{ request('type') === 'keluar' ? 'selected' : '' }}>Keluar</option>
-                    </select>
-                </div>
+            <form action="{{ route('keuangan.index') }}" method="GET" class="mt-6 grid gap-4 lg:grid-cols-2">
                 <div>
                     <label class="block text-sm font-semibold text-gray-700">Kategori</label>
                     <select name="category_id" class="mt-2 w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-indigo-500 focus:ring-indigo-500">
@@ -98,10 +81,8 @@
                     <thead class="bg-gray-50">
                         <tr>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tanggal</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Jenis</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Sumber</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Kategori</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Akun Kas</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Jumlah</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tipe Akun</th>
                             <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Aksi</th>
@@ -111,11 +92,6 @@
                         @forelse($transactions as $transaction)
                             <tr>
                                 <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-800">{{ $transaction->transaction_date->format('d-m-Y') }}</td>
-                                <td class="px-4 py-4 whitespace-nowrap text-sm">
-                                    <span class="inline-flex rounded-full px-3 py-1 text-xs font-semibold {{ $transaction->type === 'masuk' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700' }}">
-                                        {{ ucfirst($transaction->type) }}
-                                    </span>
-                                </td>
                                 <td class="px-4 py-4 whitespace-nowrap text-sm">
                                     @if($transaction->isFromZisDistribution())
                                         <span class="inline-flex rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">Transfer dari ZIS</span>
