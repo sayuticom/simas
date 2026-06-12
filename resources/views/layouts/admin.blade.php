@@ -4,13 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', 'SIMAS - Sistem Informasi Manajemen Masjid')</title>
-    
+
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
+
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+
     <style>
         ::-webkit-scrollbar {
             width: 8px;
@@ -254,7 +254,7 @@
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
-                
+
                 <!-- NAMA MASJID DI BAWAH LOGO -->
                 @auth
                 <p class="text-xs text-slate-300 mt-2">Sistem Informasi Manajemen Masjid</p>
@@ -318,7 +318,7 @@
                     <li>
                         <a href="{{ route('keuangan.index') }}" data-sidebar-link class="flex items-center px-3 py-2 rounded-lg {{ request()->routeIs('keuangan.*') ? 'bg-indigo-600 text-white' : 'text-gray-700 hover:bg-gray-100' }}">
                             <i class="fas fa-money-bill mr-3"></i>
-                            <span>Keuangan Masjid</span>
+                            <span>Keuangan Operasional</span>
                         </a>
                     </li>
                     <li class="pl-6">
@@ -592,7 +592,7 @@
                         @endauth
                         </div>
                     </div>
-                    
+
                     <!-- BAGIAN KANAN: USER & LOGOUT -->
                     @auth
                         <div class="flex min-w-0 flex-shrink-0 items-center gap-2 sm:gap-4">
