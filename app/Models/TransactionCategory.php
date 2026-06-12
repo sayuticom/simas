@@ -10,7 +10,6 @@ class TransactionCategory extends Model
     use HasFactory;
 
     public const TYPE_MASUK = 'masuk';
-
     public const TYPE_KELUAR = 'keluar';
 
     public const TYPE_OPTIONS = [
@@ -18,41 +17,24 @@ class TransactionCategory extends Model
         self::TYPE_KELUAR => 'Keluar',
     ];
 
-    public const DEFAULT_CATEGORIES = [
-        // Default keluar categories applied per mosque
-        self::TYPE_KELUAR => [
-            'Dakwah & Kajian',
-            'Honor Petugas',
-            'Kebersihan',
-            'Listrik & Air',
-            'ATK & Administrasi',
-            'Konsumsi',
-            'Perawatan Masjid',
-            'Transportasi',
-            'Perlengkapan Ibadah',
-            'Keamanan',
-            'Biaya Admin Bank',
-            'Lainnya',
-        ],
-    ];
-
     /**
-     * Ensure default categories exist for all mosques.
+     * Default kategori hanya untuk OPERASIONAL KELUAR
+     * (dipakai di Keuangan Operasional SIMAS)
      */
-    public static function ensureDefaultsForAllMosques(): void
-    {
-        // Avoid pulling large models if not necessary; use Mosque model to get ids
-        $mosqueModel = app()->makeIf(\App\Models\Mosque::class);
-        if (! $mosqueModel) {
-            return;
-        }
-
-        $mosqueIds = \App\Models\Mosque::query()->pluck('id')->all();
-
-        foreach ($mosqueIds as $mosqueId) {
-            self::ensureDefaultsForMosque($mosqueId);
-        }
-    }
+    public const DEFAULT_OPERASIONAL_KELUAR = [
+        'Dakwah & Kajian',
+        'Honor Petugas',
+        'Kebersihan',
+        'Listrik & Air',
+        'ATK & Administrasi',
+        'Konsumsi',
+        'Perawatan Masjid',
+        'Transportasi',
+        'Perlengkapan Ibadah',
+        'Keamanan',
+        'Biaya Admin Bank',
+        'Lainnya',
+    ];
 
     protected $fillable = [
         'mosque_id',
@@ -66,6 +48,11 @@ class TransactionCategory extends Model
         'is_active' => 'boolean',
     ];
 
+    /*
+    |-------------------------------------------------------
+    | RELATION
+    |-------------------------------------------------------
+    */
     public function transactions()
     {
         return $this->hasMany(Transaction::class);
@@ -76,21 +63,37 @@ class TransactionCategory extends Model
         return $this->belongsTo(Mosque::class);
     }
 
+    /*
+    |-------------------------------------------------------
+    | SEED DEFAULT PER MOSQUE
+    |-------------------------------------------------------
+    */
     public static function ensureDefaultsForMosque(int $mosqueId): void
     {
-        foreach (self::DEFAULT_CATEGORIES as $type => $names) {
-            foreach ($names as $name) {
-                self::firstOrCreate(
-                    [
-                        'mosque_id' => $mosqueId,
-                        'name' => $name,
-                    ],
-                    [
-                        'type' => $type,
-                        'is_active' => $type === self::TYPE_KELUAR,
-                    ]
-                );
-            }
+        foreach (self::DEFAULT_OPERASIONAL_KELUAR as $name) {
+            self::firstOrCreate(
+                [
+                    'mosque_id' => $mosqueId,
+                    'name' => $name,
+                    'type' => self::TYPE_KELUAR,
+                ],
+                [
+                    'description' => 'Kategori pengeluaran operasional',
+                    'is_active' => true,
+                ]
+            );
+        }
+    }
+
+    /**
+     * Ensure default categories exist for all mosques.
+     */
+    public static function ensureDefaultsForAllMosques(): void
+    {
+        $mosqueIds = Mosque::query()->pluck('id');
+
+        foreach ($mosqueIds as $mosqueId) {
+            self::ensureDefaultsForMosque($mosqueId);
         }
     }
 }

@@ -565,7 +565,12 @@
                                 </a>
                             </li>
                         @endif
-                        @if(auth()->user()->isSuperuser())
+                        @if(auth()->user()->isSuperuser() || auth()->user()->isSuperSuperuser())
+                            <li class="pl-6">
+                                <a href="{{ route('pengaturan.kategori-pengeluaran.index') }}" class="flex items-center px-3 py-1.5 rounded-lg text-sm {{ request()->routeIs('pengaturan.kategori-pengeluaran.*') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-600 hover:bg-gray-100' }}">
+                                    Kategori Pengeluaran
+                                </a>
+                            </li>
                             <li class="pl-6">
                                 <a href="{{ route('user-invitations.index') }}" class="flex items-center px-3 py-1.5 rounded-lg text-sm {{ request()->routeIs('user-invitations.*') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-600 hover:bg-gray-100' }}">
                                     Undangan User

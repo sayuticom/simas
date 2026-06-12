@@ -107,6 +107,12 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::get('/dashboard/jamaah/qr', [JamaahQrController::class, 'showQr'])->name('jamaah.qr');
 });
 
+Route::get('/pengaturan', function () {
+    return view('admin.pengaturan.dashboard');
+})->name('pengaturan.dashboard');
+
+
+
 Route::middleware(['web', 'auth', \App\Http\Middleware\EnsureActiveMosque::class])->group(function () {
     Route::get('/profil-masjid', [MosqueProfileController::class, 'index'])->name('profile');
     Route::put('/profil-masjid', [MosqueProfileController::class, 'update'])->name('profile.update');
@@ -140,12 +146,22 @@ Route::middleware(['web', 'auth', \App\Http\Middleware\EnsureActiveMosque::class
     Route::get('/laporan', [LaporanController::class, 'index'])->name('laporan.index');
 
     Route::get('/keuangan', [TransactionController::class, 'index'])->name('keuangan.index');
-    Route::get('/keuangan/kategori', [TransactionCategoryController::class, 'index'])->name('keuangan.kategori.index');
-    Route::get('/keuangan/kategori/create', [TransactionCategoryController::class, 'create'])->name('keuangan.kategori.create');
-    Route::post('/keuangan/kategori', [TransactionCategoryController::class, 'store'])->name('keuangan.kategori.store');
-    Route::get('/keuangan/kategori/{category}/edit', [TransactionCategoryController::class, 'edit'])->name('keuangan.kategori.edit');
-    Route::put('/keuangan/kategori/{category}', [TransactionCategoryController::class, 'update'])->name('keuangan.kategori.update');
-    Route::delete('/keuangan/kategori/{category}', [TransactionCategoryController::class, 'destroy'])->name('keuangan.kategori.destroy');
+
+    // Pengaturan: Kategori Pengeluaran (superuser only)
+    Route::middleware(['auth', \App\Http\Middleware\CheckRole::class . ':' . \App\Models\Role::SUPERUSER])->group(function () {
+        Route::prefix('pengaturan')->name('pengaturan.')->group(function () {
+            Route::get('/kategori-pengeluaran', [TransactionCategoryController::class, 'index'])->name('kategori-pengeluaran.index');
+            Route::get('/kategori-pengeluaran/create', [TransactionCategoryController::class, 'create'])->name('kategori-pengeluaran.create');
+            Route::post('/kategori-pengeluaran', [TransactionCategoryController::class, 'store'])->name('kategori-pengeluaran.store');
+            Route::get('/kategori-pengeluaran/{category}/edit', [TransactionCategoryController::class, 'edit'])->name('kategori-pengeluaran.edit');
+            Route::put('/kategori-pengeluaran/{category}', [TransactionCategoryController::class, 'update'])->name('kategori-pengeluaran.update');
+            Route::delete('/kategori-pengeluaran/{category}', [TransactionCategoryController::class, 'destroy'])->name('kategori-pengeluaran.destroy');
+        });
+    });
+
+    // Keuangan (operasional)
+    // (Kategori dipindahkan ke /pengaturan/kategori-pengeluaran)
+
     Route::get('/keuangan/akun-kas', [CashAccountController::class, 'index'])->name('keuangan.akun-kas.index');
     Route::get('/keuangan/akun-kas/create', [CashAccountController::class, 'create'])->name('keuangan.akun-kas.create');
     Route::post('/keuangan/akun-kas', [CashAccountController::class, 'store'])->name('keuangan.akun-kas.store');

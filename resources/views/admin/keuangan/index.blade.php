@@ -18,7 +18,7 @@
 
     <div class="grid gap-6 xl:grid-cols-[320px_1fr]">
         <div class="bg-white rounded-lg shadow p-6">
-            <h2 class="text-lg font-bold text-gray-800 mb-4">Saldo Operasional</h2>
+            <h2 class="text-lg font-bold text-gray-800 mb-4">Saldo Infak & Sedekah</h2>
             <div class="space-y-4">
                 <div class="rounded-lg bg-green-50 p-4">
                     <p class="text-sm text-gray-600">Total Infak Masuk</p>
@@ -40,26 +40,15 @@
                 <div>
                     <h2 class="text-lg font-bold text-gray-800">Daftar Transaksi</h2>
                     <p class="text-sm text-gray-500">Transaksi operasional masjid. Pemasukan dari Penyaluran ZIS ke Operasional tampil otomatis, sedangkan pengeluaran dicatat manual.</p>
-                    <p class="text-xs text-gray-500 mt-1">Catatan: Transfer dari ZIS yang berasal dari penyaluran lama tetap tampil sebagai riwayat, tetapi tidak dihitung ganda dalam saldo operasional.</p>
                 </div>
+
                 <div class="flex flex-wrap gap-3">
-                    @if(auth()->user()->isSuperuser())
-                        <a href="{{ route('keuangan.kategori.index') }}" class="inline-flex items-center gap-2 rounded-lg border border-indigo-600 px-5 py-3 text-indigo-600 hover:bg-indigo-50 transition"><i class="fas fa-tags"></i> Kategori</a>
-                    @endif
                     <a href="{{ route('keuangan.transaksi.create') }}" class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-3 text-white hover:bg-indigo-700 transition"><i class="fas fa-plus"></i> Tambah Pengeluaran</a>
                 </div>
             </div>
 
             <form action="{{ route('keuangan.index') }}" method="GET" class="mt-6 grid gap-4 lg:grid-cols-2">
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700">Kategori</label>
-                    <select name="category_id" class="mt-2 w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-indigo-500 focus:ring-indigo-500">
-                        <option value="">Semua kategori</option>
-                        @foreach($categories as $category)
-                            <option value="{{ $category->id }}" {{ request('category_id') == $category->id ? 'selected' : '' }}>{{ $category->name }} ({{ $category->type }})</option>
-                        @endforeach
-                    </select>
-                </div>
+
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-semibold text-gray-700">Dari tanggal</label>
