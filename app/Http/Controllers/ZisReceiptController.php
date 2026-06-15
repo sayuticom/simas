@@ -18,7 +18,7 @@ class ZisReceiptController extends Controller
 {
     public function index(): View
     {
-        $receipts = ZisReceipt::with(['cashAccount', 'category'])
+        $receipts = ZisReceipt::with(['cashAccount', 'category', 'recappedBy'])
             ->withSum('distributions as distributed_amount', 'amount')
             ->latest('receipt_date')
             ->paginate(10);
@@ -109,7 +109,7 @@ class ZisReceiptController extends Controller
     public function show(ZisReceipt $receipt): View
     {
         $this->ensureOwnReceipt($receipt);
-        $receipt->load(['cashAccount', 'category', 'distributions.cashAccount', 'distributions.category']);
+        $receipt->load(['cashAccount', 'category', 'distributions.cashAccount', 'distributions.category', 'recappedBy']);
         $receipt->loadSum('distributions as distributed_amount', 'amount');
         $receipt->ensurePublicReceiptToken();
         $publicReceiptUrl = route('zis.penerimaan.receipt.public', $receipt->public_receipt_token);
@@ -147,7 +147,7 @@ class ZisReceiptController extends Controller
         $this->ensureOwnReceipt($receipt);
 
         if ($receipt->isLocked()) {
-            abort(403, 'Penerimaan ZIS sudah memiliki tanda terima digital dan tidak dapat diubah atau dihapus.');
+            abort(403, $this->lockedReceiptMessage());
         }
 
         $categories = $this->activeCategories($receipt->zis_category_id);
@@ -161,7 +161,7 @@ class ZisReceiptController extends Controller
         $this->ensureOwnReceipt($receipt);
 
         if ($receipt->isLocked()) {
-            abort(403, 'Penerimaan ZIS sudah memiliki tanda terima digital dan tidak dapat diubah atau dihapus.');
+            abort(403, $this->lockedReceiptMessage());
         }
 
         $data = $this->validatedData($request, $receipt);
@@ -191,7 +191,7 @@ class ZisReceiptController extends Controller
         $this->ensureOwnReceipt($receipt);
 
         if ($receipt->isLocked()) {
-            abort(403, 'Penerimaan ZIS sudah memiliki tanda terima digital dan tidak dapat diubah atau dihapus.');
+            abort(403, $this->lockedReceiptMessage());
         }
 
         if ($receipt->distributions()->exists()) {
@@ -207,6 +207,28 @@ class ZisReceiptController extends Controller
         $receipt->delete();
 
         return redirect()->route('zis.receipts.index')->with('success', 'Penerimaan ZIS berhasil dihapus.');
+    }
+
+    public function markRecapped(Request $request, ZisReceipt $receipt)
+    {
+        $this->ensureOwnReceipt($receipt);
+
+        $data = $request->validate([
+            'recap_note' => 'nullable|string|max:1000',
+        ]);
+
+        if ($receipt->isRecapped()) {
+            return back()->with('success', 'Penerimaan ZIS ini sudah direkap/disetorkan ke Bendahara.');
+        }
+
+        $receipt->update([
+            'recap_status' => ZisReceipt::RECAP_STATUS_SUDAH_DIREKAP,
+            'recapped_at' => now(),
+            'recapped_by' => auth()->id(),
+            'recap_note' => $data['recap_note'] ?? null,
+        ]);
+
+        return back()->with('success', 'Penerimaan ZIS berhasil ditandai sudah direkap/disetorkan ke Bendahara.');
     }
 
     private function validatedData(Request $request, ?ZisReceipt $receipt = null): array
@@ -384,5 +406,10 @@ class ZisReceiptController extends Controller
                 'cash_account_id' => 'Akun kas tidak bisa diubah karena penerimaan ini sudah memiliki riwayat penyaluran.',
             ]);
         }
+    }
+
+    private function lockedReceiptMessage(): string
+    {
+        return 'Penerimaan ZIS ini sudah terkunci karena tanda terima digital sudah diterbitkan atau sudah direkap/disetorkan ke Bendahara.';
     }
 }

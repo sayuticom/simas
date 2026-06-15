@@ -46,9 +46,26 @@
                 @endif
             </p>
             @if($receipt->isLocked())
-                <p class="mt-1 text-sm text-gray-700">Data sudah memiliki tanda terima digital dan terkunci dari perubahan.</p>
+                <p class="mt-1 text-sm text-gray-700">Data sudah terkunci karena tanda terima digital sudah diterbitkan atau sudah direkap/disetorkan ke Bendahara.</p>
             @else
                 <p class="mt-1 text-sm text-gray-700">Data belum terkunci. Anda dapat mengedit/dihapus penerimaan ini.</p>
+            @endif
+        </div>
+        <div class="rounded-lg bg-gray-50 p-3 md:col-span-2">
+            <p class="text-sm text-gray-500">Status Rekap/Setor Bendahara</p>
+            <p class="font-semibold">
+                {{ $receipt->recapStatusLabel() }}
+                @if($receipt->isRecapped() && $receipt->recapped_at)
+                    <span class="text-sm font-normal text-gray-600">({{ $receipt->recapped_at->format('d-m-Y H:i') }})</span>
+                @endif
+            </p>
+            @if($receipt->isRecapped())
+                <p class="mt-1 text-sm text-gray-700">Direkap oleh: {{ $receipt->recappedBy?->name ?? '-' }}</p>
+                @if($receipt->recap_note)
+                    <p class="mt-1 text-sm text-gray-700">Catatan: {{ $receipt->recap_note }}</p>
+                @endif
+            @else
+                <p class="mt-1 text-sm text-gray-700">Penerimaan ini belum direkap/disetorkan ke Bendahara.</p>
             @endif
         </div>
     </div>
@@ -74,6 +91,13 @@
     <div class="mt-6 flex flex-wrap gap-3">
         <a href="{{ $publicReceiptUrl }}" target="_blank" rel="noopener noreferrer" class="rounded-lg bg-indigo-600 px-4 py-2 text-white">Lihat Bukti Digital</a>
         <button type="button" onclick="copyPublicReceiptUrl()" class="rounded-lg border px-4 py-2 text-gray-700">Salin Link Bukti Digital</button>
+        @if(! $receipt->isRecapped())
+            <form action="{{ route('zis.receipts.recap', $receipt) }}" method="POST" onsubmit="return confirm('Yakin tandai penerimaan ini sudah direkap/disetorkan ke Bendahara? Setelah ditandai, data akan terkunci.');">
+                @csrf
+                @method('PATCH')
+                <button class="rounded-lg bg-blue-600 px-4 py-2 text-white">Tandai Direkap/Setor Bendahara</button>
+            </form>
+        @endif
         @if($receipt->canBeEdited())
             <a href="{{ route('zis.receipts.edit', $receipt) }}" class="rounded-lg bg-green-600 px-4 py-2 text-white">Edit</a>
         @endif

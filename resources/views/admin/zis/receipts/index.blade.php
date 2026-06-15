@@ -27,6 +27,7 @@
                     <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Akun Kas</th>
                     <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Donatur</th>
                     <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Nominal</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status Rekap</th>
                     <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Aksi</th>
                 </tr>
             </thead>
@@ -41,6 +42,16 @@
                         <td class="px-4 py-4 text-sm text-gray-700">{{ $receipt->cashAccount?->name ?? '-' }}</td>
                         <td class="px-4 py-4 text-sm text-gray-700">{{ $receipt->donor_name ?: '-' }}</td>
                         <td class="px-4 py-4 text-sm text-gray-700">Rp {{ number_format($receiptAmount, 0, ',', '.') }}</td>
+                        <td class="px-4 py-4 text-sm">
+                            @if($receipt->isRecapped())
+                                <span class="inline-flex rounded-full bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700">{{ $receipt->recapStatusLabel() }}</span>
+                                @if($receipt->recapped_at)
+                                    <span class="mt-1 block text-xs text-gray-500">{{ $receipt->recapped_at->format('d-m-Y H:i') }}</span>
+                                @endif
+                            @else
+                                <span class="inline-flex rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-700">{{ $receipt->recapStatusLabel() }}</span>
+                            @endif
+                        </td>
                         <td class="px-4 py-4 text-right text-sm">
                             @php
                                 $publicUrl = $receipt->public_receipt_token ? route('zis.penerimaan.receipt.public', $receipt->public_receipt_token) : null;
@@ -61,6 +72,15 @@
                                         <i class="fas fa-link"></i> <span>Bukti Digital</span>
                                     </button>
                                 @endif
+                                @if(! $receipt->isRecapped())
+                                    <form action="{{ route('zis.receipts.recap', $receipt) }}" method="POST" class="inline" onsubmit="return confirm('Yakin tandai penerimaan ini sudah direkap/disetorkan ke Bendahara? Setelah ditandai, data akan terkunci.');">
+                                        @csrf
+                                        @method('PATCH')
+                                        <button class="inline-flex items-center gap-1 rounded-full bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-700">
+                                            <i class="fas fa-clipboard-check"></i> <span>Tandai Direkap</span>
+                                        </button>
+                                    </form>
+                                @endif
                                 @if($receipt->canBeEdited())
                                     <a href="{{ route('zis.receipts.edit', $receipt) }}" class="inline-flex items-center gap-1 rounded-full bg-amber-300 px-2 py-1 text-xs text-amber-900 hover:bg-amber-200">
                                         <i class="fas fa-edit"></i> <span>Edit</span>
@@ -79,7 +99,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="px-4 py-8 text-center text-sm text-gray-500">Belum ada penerimaan ZIS.</td></tr>
+                    <tr><td colspan="7" class="px-4 py-8 text-center text-sm text-gray-500">Belum ada penerimaan ZIS.</td></tr>
                 @endforelse
             </tbody>
         </table>
