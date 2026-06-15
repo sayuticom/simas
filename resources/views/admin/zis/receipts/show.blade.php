@@ -37,6 +37,20 @@
             @endif
         </div>
         <div class="rounded-lg bg-gray-50 p-3 md:col-span-2"><p class="text-sm text-gray-500">Keterangan</p><p class="text-sm">{{ $receipt->description ?: '-' }}</p></div>
+        <div class="rounded-lg bg-gray-50 p-3 md:col-span-2">
+            <p class="text-sm text-gray-500">Status Tanda Terima</p>
+            <p class="font-semibold">
+                {{ $receipt->isReceiptIssued() ? 'Sudah Diterbitkan' : 'Belum Diterbitkan' }}
+                @if($receipt->isReceiptIssued() && $receipt->receipt_issued_at)
+                    <span class="text-sm font-normal text-gray-600">({{ $receipt->receipt_issued_at->format('d-m-Y H:i') }})</span>
+                @endif
+            </p>
+            @if($receipt->isLocked())
+                <p class="mt-1 text-sm text-gray-700">Data sudah memiliki tanda terima digital dan terkunci dari perubahan.</p>
+            @else
+                <p class="mt-1 text-sm text-gray-700">Data belum terkunci. Anda dapat mengedit/dihapus penerimaan ini.</p>
+            @endif
+        </div>
     </div>
     <div class="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -60,8 +74,9 @@
     <div class="mt-6 flex flex-wrap gap-3">
         <a href="{{ $publicReceiptUrl }}" target="_blank" rel="noopener noreferrer" class="rounded-lg bg-indigo-600 px-4 py-2 text-white">Lihat Bukti Digital</a>
         <button type="button" onclick="copyPublicReceiptUrl()" class="rounded-lg border px-4 py-2 text-gray-700">Salin Link Bukti Digital</button>
-        <a href="{{ route('zis.receipts.kwitansi', $receipt) }}" target="_blank" class="rounded-lg border px-4 py-2 text-gray-700">Cetak</a>
-        <a href="{{ route('zis.receipts.edit', $receipt) }}" class="rounded-lg bg-green-600 px-4 py-2 text-white">Edit</a>
+        @if($receipt->canBeEdited())
+            <a href="{{ route('zis.receipts.edit', $receipt) }}" class="rounded-lg bg-green-600 px-4 py-2 text-white">Edit</a>
+        @endif
         <a href="{{ route('zis.receipts.index') }}" class="rounded-lg border px-4 py-2 text-gray-700">Kembali</a>
     </div>
 </div>

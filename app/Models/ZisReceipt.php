@@ -37,11 +37,15 @@ class ZisReceipt extends Model
         'bukti_file',
         'diterima_oleh',
         'keterangan',
+        'receipt_status',
+        'receipt_issued_at',
+        'receipt_issued_by',
     ];
 
     protected $casts = [
         'tanggal' => 'date',
         'receipt_date' => 'date',
+        'receipt_issued_at' => 'datetime',
         'amount' => 'decimal:2',
         'nominal_uang' => 'decimal:2',
     ];
@@ -111,8 +115,38 @@ class ZisReceipt extends Model
         return $this->public_receipt_token;
     }
 
+    public function isReceiptIssued(): bool
+    {
+        return ($this->receipt_status ?? 'belum_diterbitkan') === 'sudah_diterbitkan';
+    }
+
+    /**
+     * Recap/setor ke bendahara saat ini belum memiliki kolom status tersendiri pada modul ZIS.
+     * Implementasi penguncian dibuat minimal: kunci berdasarkan tanda terima digital saja.
+     */
+    public function isRecapped(): bool
+    {
+        return false;
+    }
+
+    public function isLocked(): bool
+    {
+        return $this->isReceiptIssued() || $this->isRecapped();
+    }
+
+    public function canBeEdited(): bool
+    {
+        return ! $this->isLocked();
+    }
+
+    public function canBeDeleted(): bool
+    {
+        return ! $this->isLocked();
+    }
+
     public function receiptNumber(): string
     {
         return sprintf('ZIS-%s-%06d', $this->receipt_date?->format('Y') ?? $this->tanggal?->format('Y') ?? now()->format('Y'), $this->id);
     }
 }
+

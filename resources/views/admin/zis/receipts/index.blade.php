@@ -61,16 +61,20 @@
                                         <i class="fas fa-link"></i> <span>Bukti Digital</span>
                                     </button>
                                 @endif
-                                <a href="{{ route('zis.receipts.edit', $receipt) }}" class="inline-flex items-center gap-1 rounded-full bg-amber-300 px-2 py-1 text-xs text-amber-900 hover:bg-amber-200">
-                                    <i class="fas fa-edit"></i> <span>Edit</span>
-                                </a>
-                                <form action="{{ route('zis.receipts.destroy', $receipt) }}" method="POST" class="inline">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button class="inline-flex items-center gap-1 rounded-full bg-red-600 px-2 py-1 text-xs text-white hover:bg-red-700" onclick="return confirm('Hapus penerimaan ini?');">
-                                        <i class="fas fa-trash-alt"></i> <span>Hapus</span>
-                                    </button>
-                                </form>
+                                @if($receipt->canBeEdited())
+                                    <a href="{{ route('zis.receipts.edit', $receipt) }}" class="inline-flex items-center gap-1 rounded-full bg-amber-300 px-2 py-1 text-xs text-amber-900 hover:bg-amber-200">
+                                        <i class="fas fa-edit"></i> <span>Edit</span>
+                                    </a>
+                                @endif
+                                @if($receipt->canBeDeleted())
+                                    <form action="{{ route('zis.receipts.destroy', $receipt) }}" method="POST" class="inline">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button class="inline-flex items-center gap-1 rounded-full bg-red-600 px-2 py-1 text-xs text-white hover:bg-red-700" onclick="return confirm('Hapus penerimaan ini?');">
+                                            <i class="fas fa-trash-alt"></i> <span>Hapus</span>
+                                        </button>
+                                    </form>
+                                @endif
                             </div>
                         </td>
                     </tr>

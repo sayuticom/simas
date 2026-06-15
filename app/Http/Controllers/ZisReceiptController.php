@@ -50,6 +50,7 @@ class ZisReceiptController extends Controller
         }
 
         // Run validation first. If validation fails, token remains in session so user can correct and resubmit.
+
         $data = $this->validatedData($request, null);
 
         $category = $this->category((int) $data['zis_category_id']);
@@ -64,6 +65,9 @@ class ZisReceiptController extends Controller
 
         DB::beginTransaction();
         try {
+            // Token publik akan otomatis dibuat oleh model.
+            // Setelah store berhasil, receipt dikunci sebagai sudah diterbitkan.
+
             if ($request->hasFile('proof_file')) {
                 $filePath = $request->file('proof_file')->store('zis/receipts', 'public');
                 $data['proof_file'] = $filePath;
@@ -89,6 +93,13 @@ class ZisReceiptController extends Controller
 
             return redirect()->route('zis.receipts.create')->withInput()->with('error', 'Terjadi kesalahan saat menyimpan. Silakan coba lagi.');
         }
+
+        // Lock: mark receipt as issued (digital receipt public URL is ready)
+        $receipt->update([
+            'receipt_status' => 'sudah_diterbitkan',
+            'receipt_issued_at' => now(),
+            'receipt_issued_by' => auth()->id(),
+        ]);
 
         $publicReceiptUrl = route('zis.penerimaan.receipt.public', $receipt->public_receipt_token);
 
@@ -134,6 +145,11 @@ class ZisReceiptController extends Controller
     public function edit(ZisReceipt $receipt): View
     {
         $this->ensureOwnReceipt($receipt);
+
+        if ($receipt->isLocked()) {
+            abort(403, 'Penerimaan ZIS sudah memiliki tanda terima digital dan tidak dapat diubah atau dihapus.');
+        }
+
         $categories = $this->activeCategories($receipt->zis_category_id);
         $cashAccounts = $this->activeCashAccounts($receipt->cash_account_id);
 
@@ -143,6 +159,11 @@ class ZisReceiptController extends Controller
     public function update(Request $request, ZisReceipt $receipt)
     {
         $this->ensureOwnReceipt($receipt);
+
+        if ($receipt->isLocked()) {
+            abort(403, 'Penerimaan ZIS sudah memiliki tanda terima digital dan tidak dapat diubah atau dihapus.');
+        }
+
         $data = $this->validatedData($request, $receipt);
         $category = $this->category((int) $data['zis_category_id']);
         abort_if(! $category->is_active && (int) $category->id !== (int) $receipt->zis_category_id, 422, 'Kategori ZIS nonaktif tidak bisa dipilih.');
@@ -168,6 +189,10 @@ class ZisReceiptController extends Controller
     public function destroy(ZisReceipt $receipt)
     {
         $this->ensureOwnReceipt($receipt);
+
+        if ($receipt->isLocked()) {
+            abort(403, 'Penerimaan ZIS sudah memiliki tanda terima digital dan tidak dapat diubah atau dihapus.');
+        }
 
         if ($receipt->distributions()->exists()) {
             return redirect()
